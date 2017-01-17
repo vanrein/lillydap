@@ -1,0 +1,344 @@
+%language=ANSI-C
+%compare-strncmp
+//FAILS// %pic
+
+%struct-type
+%global-table
+%readonly-tables
+%define slot-name extoid
+
+%define   hash-function-name lillymsg_perfhash_ext
+%define lookup-function-name lillymsg_packinfo_ext
+%define      word-array-name lillymsg_msgoptab_ext
+%define    length-table-name lillymsg_msgoplen_ext
+
+
+%{
+
+#include <quick-der/api.h>
+#include <quick-der/rfc3062.h>
+#include <quick-der/rfc3909.h>
+#include <quick-der/rfc4373.h>
+#include <quick-der/rfc4511.h>
+#include <quick-der/rfc4531.h>
+#include <quick-der/rfc5805.h>
+
+
+/* Make the derwalk[] packing definitions for the various types of request
+ * and response.  These will be used in packer info tables defined below.
+ *
+ * mkpqr() is definition for basic requests and responses
+ * mkpeq() prefixes and wraps fields for an extension request
+ * mkper() prefixes and wraps fields for an extension response
+ */
+#define mkpqr(spec,id) \
+	static const derwalk pack_##spec##_##id [] = { \
+		DER_PACK_##spec##_##id, DER_PACK_END \
+	}
+#define mkpeq(spec,id) \
+	static const derwalk pack_##spec##_##id [] = { \
+		DER_PACK_ENTER | DER_TAG_APPLICATION(23), \
+		DER_PACK_ENTER | DER_TAG_SEQUENCE, \
+		DER_PACK_ENTER | DER_TAG_CONTEXT(0), \
+		DER_PACK_rfc4511_LDAPOID, \
+		DER_PACK_LEAVE, \
+		DER_PACK_OPTIONAL, \
+		DER_PACK_ENTER | DER_TAG_CONTEXT(1), \
+		DER_PACK_ENTER | DER_TAG_OCTET_STRING, \
+		DER_PACK_##spec##_##id, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE, \
+		DER_PACK_END \
+	}
+#define mkper(spec,id) \
+	static const derwalk pack_##spec##_##id [] = { \
+		DER_PACK_ENTER | DER_TAG_APPLICATION(24), \
+		DER_PACK_ENTER | DER_TAG_SEQUENCE, \
+		DER_PACK_STORE | DER_TAG_ENUMERATED, \
+		DER_PACK_rfc4511_LDAPDN, \
+		DER_PACK_rfc4511_LDAPString, \
+		DER_PACK_OPTIONAL, \
+		DER_PACK_ENTER | DER_TAG_CONTEXT(3), \
+		DER_PACK_rfc4511_Referral, \
+		DER_PACK_LEAVE, \
+		DER_PACK_OPTIONAL, \
+		DER_PACK_ENTER | DER_TAG_CONTEXT(10), \
+		DER_PACK_rfc4511_LDAPOID, \
+		DER_PACK_LEAVE, \
+		DER_PACK_OPTIONAL, \
+		DER_PACK_ENTER | DER_TAG_CONTEXT(11), \
+		DER_PACK_ENTER | DER_TAG_OCTETSTRING, \
+		DER_PACK_##spec##_##id, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE, \
+		DER_PACK_LEAVE \
+	}
+
+// RFC 3062 operations
+mkpeq (rfc3062, PasswdModifyRequestValue);
+mkper (rfc3062, PasswdModifyResponseValue);
+
+// RFC 3909 operations
+mkpeq (rfc3909, CancelRequestValue);
+// mkper (rfc4511, ExtendedResponse)
+
+// RFC 4373 operations
+mkpeq (rfc4373, StartLBURPRequestValue);
+mkper (rfc4373, StartLBURPResponseValue);
+mkpeq (rfc4373, EndLBURPRequestValue);
+// mkper (rfc4511, ExtendedResponse)
+mkpeq (rfc4373, LBURPUpdateRequestValue);
+// mkper (rfc4511, ExtendedResponse)
+
+// RFC 4511 operations
+mkpqr (rfc4511, BindRequest);
+mkpqr (rfc4511, BindResponse);
+mkpqr (rfc4511, UnbindRequest);
+mkpqr (rfc4511, SearchRequest);
+mkpqr (rfc4511, SearchResultEntry);
+mkpqr (rfc4511, SearchResultDone);
+mkpqr (rfc4511, ModifyRequest);
+mkpqr (rfc4511, ModifyResponse);
+mkpqr (rfc4511, AddRequest);
+mkpqr (rfc4511, AddResponse);
+mkpqr (rfc4511, DelRequest);
+mkpqr (rfc4511, DelResponse);
+mkpqr (rfc4511, ModifyDNRequest);
+mkpqr (rfc4511, ModifyDNResponse);
+mkpqr (rfc4511, CompareRequest);
+mkpqr (rfc4511, CompareResponse);
+mkpqr (rfc4511, AbandonRequest);
+mkpqr (rfc4511, SearchResultReference);
+mkpqr (rfc4511, ExtendedRequest);
+mkpqr (rfc4511, ExtendedResponse);
+mkpqr (rfc4511, IntermediateResponse);
+// StartTLSRequest  -> mkpeq (rfc4511, ExtendedRequest )
+// StartTLSResponse -> mkper (rfc4511, ExtendedResponse)
+
+// RFC 4531 operations
+mkpeq (rfc4531, TurnValue);
+// mkper (rfc4511, ExtendedResponse)
+
+// RFC 5805 operations
+mkpeq (rfc5805, TxnEndReq);
+mkper (rfc5805, TxnEndRes);
+
+
+/* The following opcodes mark supported ExtendedRequest/Response codes.
+ * Note that separate opcodes are defined for request and response, just
+ * like for basic opcodes; this is necessary since we will be replacing
+ * the ExtendedRequest and ExtendedResponse opcodes with these.
+ *
+ * The numbering of this enum is made to allow room for all basic opcodes
+ * below OPCODE_EXT_FIRST.  The extra value OPCODE_EXT_UNDEF is the first
+ * undefined extension opcode.  These indexes align with the opcode_table
+ * defined below.
+ */
+enum opcode_ext {
+// First, up to 32 basic opcodes derived from the [APPLICATION n] tag:
+	OPCODE_BIND_REQ = 0,
+	OPCODE_BIND_RESP = 1,
+	OPCODE_UNBIND_REQ = 2,
+	OPCODE_SEARCH_REQ = 3,
+	OPCODE_SEARCHRESULTENTRY_RESP = 4,
+	OPCODE_SEARCHRESULTDONE_RESP = 5,
+	OPCODE_MODIFY_REQ = 6,
+	OPCODE_MODIFY_RESP = 7,
+	OPCODE_ADD_REQ = 8,
+	OPCODE_ADD_RESP = 9,
+	OPCODE_DEL_REQ = 10,
+	OPCODE_DEL_RESP = 11,
+	OPCODE_MODIFYDN_REQ = 12,
+	OPCODE_MODIFYDN_RESP = 13,
+	OPCODE_COMPARE_REQ = 14,
+	OPCODE_COMPARE_RESP = 15,
+	OPCODE_ABANDON_REQ = 16,
+	OPCODE_SEARCHRESULT_REFERENCE_RESP = 19,
+	OPCODE_EXTENDED_REQ = 23,
+	OPCODE_EXTENDED_RESP = 24,
+	OPCODE_INTERMEDIATE_RESP = 25,
+// Value 31 has special meaning in DER and is assumed not to be used:
+	OPCODE_INVALID = 31,
+// Following, the values from enum opcode_ext:
+	OPCODE_EXT_FIRST = 32,
+	OPCODE_STARTTLS_REQ = 32,
+	OPCODE_STARTTLS_RESP,
+	OPCODE_PASSWDMODIFY_REQ,
+	OPCODE_PASSWDMODIFY_RESP,
+	OPCODE_WHOAMI_REQ,
+	OPCODE_WHOAMI_RESP,
+	OPCODE_CANCEL_REQ,
+	OPCODE_CANCEL_RESP,
+	OPCODE_STARTLBURP_REQ,
+	OPCODE_STARTLBURP_RESP,
+	OPCODE_ENDLBURP_REQ,
+	OPCODE_ENDLBURP_RESP,
+	OPCODE_LBURPUPDATE_REQ,
+	OPCODE_LBURPUPDATE_RESP,
+	OPCODE_TURN_REQ,
+	OPCODE_TURN_RESP,
+	OPCODE_STARTTXN_REQ,
+	OPCODE_STARTTXN_RESP,
+	OPCODE_ENDTXN_REQ,
+	OPCODE_ENDTXN_RESP,
+	OPCODE_ABORTEDTXN_RESP,
+	OPCODE_EXT_UNDEF
+};
+
+
+/* The LDAPMessage has a lot of variety built in, and leads to one long
+ * dercursor[] array that serialises all variants and that also crosses
+ * the abstraction levels that we prefer.
+ * So we prefer to parse the LDAPMessage only shallowly at first.  This
+ * also helps because rejection of commands can be done without parsing
+ * their internals.  So here we have a shallow packer prescription to
+ * counter the full-depth version from <quick-der/rfc4511.h>
+ */
+static const derwalk pack_ldapmsg_shallow [] = {
+	DER_PACK_ENTER | DER_TAG_SEQUENCE,	// SEQUENCE { ...
+	DER_PACK_STORE | DER_TAG_INTEGER,	// messageID
+	DER_PACK_STORE | DER_PACK_ANY,		// protocolOp CHOICE { ... }
+	DER_PACK_OPTIONAL,
+	DER_PACK_STORE | DER_PACK_ANY,		// controls SEQ-OF OPTIONAL
+	DER_PACK_LEAVE,				// ...}
+	DER_PACK_END
+};
+
+
+#define packlen(spec,id) sizeof(DER_OVLY_##spec##_##id)
+
+#define pack(spec,id) pack_##spec##_##id, packlen(spec,id)
+
+
+static const derwalk nopack   [] = { DER_PACK_END };
+static const derwalk whatever [] = { DER_PACK_ANY, DER_WALK_END };
+
+#define ABSENT 			nopack,   0
+#define ABSENT_OR_LITERAL	nopack,   0
+#define LITERAL			pack (rfc4511, 
+#define REJECT			NULL,     0
+
+
+/* The parser data consists of parser script, and of data size; in addition,
+ * there may be a size for the request-associated response.  Sizes are in
+ * numbers of dercursor to be overlaid by a structure.
+ *
+ * The opcode_table holds 32 entries indexed by the [APPLICATION n] tag in
+ * the [0..31] range, where the last one is not usable  The table entries
+ * define NULL as their OID.  Following these are the entries that are
+ * numbered by the above enum opcode_ext.
+ *
+ * The extreq_table and extresp_table hold a variable number of entries
+ * sorted on popularity.  Note that each of the tables defines its own
+ * Since the format of the LDAPOID leaves no * room for creativity, each
+ * structural description can simply compare the strings.  Note that a
+ * separate name space exists for   Given the low number of extensions,
+ * the setup does not use a hash function (also because that would ideally
+ * be left to static code).
+ *
+ * The general procedure is to lookup entries based on the [APPLICATION n] tag
+ * and optional OID string.  This is done when an LDAPMessage arrives, as
+ * well as before sending one.
+ */
+
+struct packer_info {
+	const derwalk *pck_message;
+	const uint16_t len_message;
+};
+
+static const struct packer_info opcode_table [] = {
+// First, 32 basic opcodes derived from the [APPLICATION n] tag:
+	{ pack (rfc4511, BindRequest) },
+	{ pack (rfc4511, BindResponse) },
+	{ pack (rfc4511, UnbindRequest) },
+	{ pack (rfc4511, SearchRequest) },
+	{ pack (rfc4511, SearchResultEntry) },
+	{ pack (rfc4511, SearchResultDone) },
+	{ pack (rfc4511, ModifyRequest) },
+	{ pack (rfc4511, ModifyResponse) },
+	{ pack (rfc4511, AddRequest) },
+	{ pack (rfc4511, AddResponse) },
+	{ pack (rfc4511, DelRequest) },
+	{ pack (rfc4511, DelResponse) },
+	{ pack (rfc4511, ModifyDNRequest) },
+	{ pack (rfc4511, ModifyDNResponse) },
+	{ pack (rfc4511, CompareRequest) },
+	{ pack (rfc4511, CompareResponse) },
+	{ pack (rfc4511, AbandonRequest) },
+	{ REJECT },
+	{ REJECT },
+	{ pack (rfc4511, SearchResultReference) },
+	{ REJECT },
+	{ REJECT },
+	{ REJECT },
+	{ pack (rfc4511, ExtendedRequest) },
+	{ pack (rfc4511, ExtendedResponse) },
+	{ pack (rfc4511, IntermediateResponse) },
+	{ REJECT },
+	{ REJECT },
+	{ REJECT },
+	{ REJECT },
+	{ REJECT },
+// Value 31 has special meaning in DER and is assumed to not be used:
+	{ REJECT },
+// Following, the values from enum opcode_ext:
+	{ pack (rfc4511, ExtendedRequest) /* rfc4511, StartTLSRequest */ },
+	{ pack (rfc4511, ExtendedResponse) /* rfc4511, StartTLSResponse */ },
+	{ pack (rfc3062, PasswdModifyRequestValue) },
+	{ pack (rfc3062, PasswdModifyResponseValue) },
+	{ pack (rfc4511, ExtendedRequest) /* rfc4532, WhoamiRequest */ },
+	{ pack (rfc4511, ExtendedResponse) /* rfc4532, WhoamiResponse */ },
+	{ pack (rfc3909, CancelRequestValue) },
+	{ pack (rfc4511, ExtendedResponse) /* rfc3909, CancelResponse */ },
+	{ pack (rfc4373, StartLBURPRequestValue) },
+	{ pack (rfc4373, StartLBURPResponseValue) },
+	{ pack (rfc4373, EndLBURPRequestValue) },
+	{ pack (rfc4511, ExtendedResponse) /* rfc4373, EndLBURPResponse */ },
+	{ pack (rfc4373, LBURPUpdateRequestValue) },
+	{ pack (rfc4511, ExtendedResponse) /* rfc4373, LBURPUpdateResponse */ },
+	{ pack (rfc4531, TurnValue) },
+	{ pack (rfc4511, ExtendedResponse) /* rfc4531, TurnValue */ },
+	{ pack (rfc4511, ExtendedRequest) /* rfc5805, startTxnRequest */ },
+	{ pack (rfc4511, ExtendedResponse) /* rfc5805, startTxnResponse */ },
+	{ pack (rfc5805, TxnEndReq) },
+	{ pack (rfc5805, TxnEndRes) },
+	{ pack (rfc4511, ExtendedResponse) /* rfc5805, TxnAbortedNotice */ },
+};
+
+#define opcode_reject ( opcode_table [31] )
+
+//TODO:NOGO// #if sizeof(opcode_table) != OPCODE_EXT_UNDEF * sizeof(struct packer_info)
+//TODO:NOGO// #  error "Number of entries in opcode_table does not equal OPCODE_EXT_UNDEF"
+//TODO:NOGO// #endif
+
+
+%}
+
+
+struct packer_info_ext {
+	const char *extoid;
+	const enum opcode_ext opc_request;
+	const enum opcode_ext opc_response;
+};
+
+
+%% 
+"1.3.6.1.4.1.1466.20037",	OPCODE_STARTTLS_REQ,	OPCODE_STARTTLS_RESP
+"1.3.6.1.4.1.4203.1.11.1",	OPCODE_PASSWDMODIFY_REQ,OPCODE_PASSWDMODIFY_RESP
+"1.3.6.1.4.1.4203.1.11.3",	OPCODE_WHOAMI_REQ,	OPCODE_WHOAMI_RESP
+"1.3.6.1.1.8",			OPCODE_CANCEL_REQ,	OPCODE_CANCEL_RESP
+"1.3.6.1.1.17.1",		OPCODE_STARTLBURP_REQ,	OPCODE_EXT_UNDEF
+"1.3.6.1.1.17.2",		OPCODE_EXT_UNDEF,	OPCODE_STARTLBURP_RESP
+"1.3.6.1.1.17.3",		OPCODE_ENDLBURP_REQ,	OPCODE_EXT_UNDEF
+"1.3.6.1.1.17.4",		OPCODE_EXT_UNDEF,	OPCODE_ENDLBURP_RESP
+"1.3.6.1.1.17.5",		OPCODE_LBURPUPDATE_REQ, OPCODE_EXT_UNDEF
+"1.3.6.1.1.17.6",		OPCODE_EXT_UNDEF,	OPCODE_LBURPUPDATE_RESP
+"1.3.6.1.1.19",			OPCODE_TURN_REQ,	OPCODE_TURN_RESP
+"1.3.6.1.1.21.1",		OPCODE_STARTTXN_REQ,	OPCODE_STARTTXN_RESP
+"1.3.6.1.1.21.3",		OPCODE_ENDTXN_REQ,	OPCODE_ENDTXN_RESP
+"1.3.6.1.1.21.4",		OPCODE_EXT_UNDEF,	OPCODE_ABORTEDTXN_RESP
+%%
+
