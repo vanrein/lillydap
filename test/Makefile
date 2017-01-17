@@ -1,7 +1,7 @@
 TARGETS=lillygetprint
 
 lillygetprint_OBJS = lillygetprint.o sillymem.o
-lillygetprint_LIBS = ../lib/mem.o ../lib/derbuf.o ../lib/dermsg.o ../lib/msgop.o ../lib/queue.o /usr/local/src/quick-der/lib/der_header.o /usr/local/src/quick-der/lib/der_unpack.o /usr/local/src/quick-der/lib/der_pack.o
+lillygetprint_LIBS = ../lib/mem.o ../lib/derbuf.o ../lib/dermsg.o ../lib/msgop.o ../lib/queue.o /usr/local/src/quick-der/lib/der_header.o /usr/local/src/quick-der/lib/der_unpack.o /usr/local/src/quick-der/lib/der_pack.o /usr/local/src/quick-der/lib/der_skipenter.o /usr/local/src/quick-der/lib/der_iterate.o
 
 OBJS = $(lillygetprint_OBJS)
 

@@ -33,7 +33,54 @@ int lillyget_operation (LDAP *lil,
 				const int opcode,
 				const dercursor *data,
 				const dercursor controls) {
-	printf ("Got opcode %d\n", opcode);
+	LillyPack_BindResponse *br = (void *) data;
+	LillyPack_SearchResultEntry *sre = (void *) data;
+	LillyPack_SearchResultReference *srr = (void *) data;
+	switch (opcode) {
+	case 1:
+		printf ("Got BindResponse\n");
+		printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
+		printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
+		printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
+		break;
+	case 4:
+		printf ("Got SearchResultEntry\n");
+		printf (" - objectName \"%.*s\"\n", sre->objectName.derlen, sre->objectName.derptr);
+		// partialAttribute SEQUENCE OF PartialAttribute
+		dercursor pa = sre->attributes;
+		der_enter (&pa);
+		while (pa.derlen > 0) {
+			dercursor type = pa;
+			// SEQUENCE { type AttributeDescription,
+			//		vals SET OF AttributeValue }
+			der_enter (&type);
+			printf (" - partialAttribute.type \"%.*s\"\n", type.derlen, type.derptr);
+			der_skip (&pa);
+			dercursor vals = pa;
+			der_enter (&vals);
+			while (vals.derlen > 0) {
+				dercursor val = vals;
+				der_enter (&val);
+				printf ("    - value \"%.*s\"\n", val.derlen, val.derptr);
+				der_skip (&vals);
+			}
+			der_skip (&pa);
+		}
+		break;
+	case 19:
+		printf ("Got SearchResultReference\n");
+		dercursor uris = *srr;
+		do {
+			dercursor uri = uris;
+			der_enter (&uri);
+			printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
+			der_skip (&uris);
+		} while (uris.derlen > 0);
+		break;
+	default:
+		printf ("Got opcode %d\n", opcode);
+		break;
+	}
 }
 
 
