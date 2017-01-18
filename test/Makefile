@@ -1,9 +1,10 @@
-TARGETS=lillygetprint
+TARGETS=lillydump
 
-lillygetprint_OBJS = lillygetprint.o sillymem.o
-lillygetprint_LIBS = ../lib/mem.o ../lib/derbuf.o ../lib/dermsg.o ../lib/msgop.o ../lib/queue.o /usr/local/src/quick-der/lib/der_header.o /usr/local/src/quick-der/lib/der_unpack.o /usr/local/src/quick-der/lib/der_pack.o /usr/local/src/quick-der/lib/der_skipenter.o /usr/local/src/quick-der/lib/der_iterate.o
+lillydump_OBJS = lillydump.o sillymem.o
+lillydump_LIBS = ../lib/mem.o ../lib/derbuf.o ../lib/dermsg.o ../lib/msgop.o ../lib/opswi.o ../lib/queue.o /usr/local/src/quick-der/lib/der_header.o /usr/local/src/quick-der/lib/der_unpack.o /usr/local/src/quick-der/lib/der_pack.o /usr/local/src/quick-der/lib/der_skipenter.o
+#/usr/local/src/quick-der/lib/der_iterate.o
 
-OBJS = $(lillygetprint_OBJS)
+OBJS = $(lillydump_OBJS)
 
 CFLAGS=-c -O0 -ggdb3 -DDEBUG
 LDFLAGS=-O0 -ggdb3
@@ -15,10 +16,10 @@ clean:
 
 anew: clean all
 
-lillygetprint: $(lillygetprint_OBJS)
-	gcc $(LDFLAGS) -o "$@" $(lillygetprint_OBJS) $(lillygetprint_LIBS)
+lillydump: $(lillydump_OBJS)
+	gcc $(LDFLAGS) -o "$@" $(lillydump_OBJS) $(lillydump_LIBS)
 
-lillygetprint.o: lillygetprint.c
+lillydump.o: lillydump.c
 	gcc $(CFLAGS) -I ../include -o "$@" "$<"
 
 sillymem.o: ../lib/sillymem.c

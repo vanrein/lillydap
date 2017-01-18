@@ -27,6 +27,90 @@
 #include <quick-der/api.h>
 
 
+int lillyget_BindRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_BindRequest *br,
+				const dercursor controls) {
+	printf ("Got BindRequest\n");
+	printf (" - version in %d bytes %02x,...\n", br->version.derlen, br->version.derptr [0]);
+	printf (" - name \"%.*s\"\n", br->name.derlen, br->name.derptr);
+	if (br->authentication.simple.derptr != NULL) {
+		printf (" - simple authentication with \"%.*s\"\n", br->authentication.simple.derlen, br->authentication.simple.derptr);
+	}
+	if (br->authentication.sasl.mechanism.derptr != NULL) {
+		printf (" - SASL mechanism \"%.*s\"\n", br->authentication.sasl.mechanism.derlen, br->authentication.sasl.mechanism.derptr);
+		if (br->authentication.sasl.credentials.derptr != NULL) {
+			printf (" - SASL credentias \"%.*s\"\n", br->authentication.sasl.credentials.derlen, br->authentication.sasl.credentials.derptr);
+		}
+	}
+	return 0;
+}
+
+int lillyget_BindResponse (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_BindResponse *br,
+				const dercursor controls) {
+	printf ("Got BindResponse\n");
+	printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
+	printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
+	printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
+	return 0;
+}
+
+int lillyget_SearchResultEntry (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultEntry *sre,
+				const dercursor controls) {
+	printf ("Got SearchResultEntry\n");
+	printf (" - objectName \"%.*s\"\n", sre->objectName.derlen, sre->objectName.derptr);
+	// partialAttribute SEQUENCE OF PartialAttribute
+	dercursor pa = sre->attributes;
+	der_enter (&pa);
+	while (pa.derlen > 0) {
+		dercursor type = pa;
+		// SEQUENCE { type AttributeDescription,
+		//		vals SET OF AttributeValue }
+		der_enter (&type);
+		printf (" - partialAttribute.type \"%.*s\"\n", type.derlen, type.derptr);
+		der_skip (&pa);
+		dercursor vals = pa;
+		der_enter (&vals);
+		while (vals.derlen > 0) {
+			dercursor val = vals;
+			der_enter (&val);
+			printf ("    - value \"%.*s\"\n", val.derlen, val.derptr);
+			der_skip (&vals);
+		}
+		der_skip (&pa);
+	}
+	return 0;
+}
+
+int lillyget_SearchResultReference (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultReference *srr,
+				const dercursor controls) {
+	printf ("Got SearchResultReference\n");
+	dercursor uris = *srr;
+	do {
+		dercursor uri = uris;
+		der_enter (&uri);
+		printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
+		der_skip (&uris);
+	} while (uris.derlen > 0);
+	return 0;
+}
+
+#if 0
+/* The following function could be used as lillyget_operation, but we have
+ * moved to instead use the generic lillyget_operation that looks into the
+ * lil->opregistry for function pointers, setup below.  Have a look at its
+ * straightforward setup; it follows similar overlay tactics as Quick DER.
+ */
 int lillyget_operation (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -39,7 +123,7 @@ int lillyget_operation (LDAP *lil,
 	switch (opcode) {
 	case 1:
 		printf ("Got BindResponse\n");
-		printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
+		printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
 		printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
 		printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
 		break;
@@ -79,9 +163,13 @@ int lillyget_operation (LDAP *lil,
 		break;
 	default:
 		printf ("Got opcode %d\n", opcode);
-		break;
+		//TODO// errno reporting for now; still to move to LDAPResults
+		errno = ENOSYS;
+		return -1;
 	}
+	return 0;
 }
+#endif
 
 
 void process (LDAP *lil, char *progname, char *derfilename) {
@@ -141,6 +229,16 @@ void setup (void) {
 }
 
 
+static const LillyOpRegistry opregistry = {
+	.by_name = {
+		.BindRequest = lillyget_BindRequest,
+		.BindResponse = lillyget_BindResponse,
+		.SearchResultEntry = lillyget_SearchResultEntry,
+		.SearchResultReference = lillyget_SearchResultReference,
+	}
+};
+
+
 int main (int argc, char *argv []) {
 	//
 	// Check arguments
@@ -166,8 +264,7 @@ int main (int argc, char *argv []) {
 	lil->lillyget_dercursor   = lillyget_dercursor;
 	lil->lillyget_ldapmessage = lillyget_ldapmessage;
 	lil->lillyget_operation   = lillyget_operation;
-	lil->support_ops [0] = LILLYGETS_ALL_REQ  | LILLYGETS_ALL_RESP ;
-	lil->support_ops [1] = LILLYGETS0_ALL_REQ | LILLYGETS0_ALL_RESP;
+	lil->opregistry = &opregistry;
 	//
 	// Allocate a connection pool
 	lil->cnxpool = lillymem_newpool ();

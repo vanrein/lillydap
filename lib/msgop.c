@@ -61,11 +61,11 @@ int lillyget_ldapmessage (LDAP *lil,
 	// For ExtendedRequest/Response, we loop here with a new opcode
 	const struct packer_info *pck;
 rerun_extended:
-	if (lil->support_ops [opcode >> 5] & (1UL << opcode) != 0) {
-		pck = &opcode_table [opcode];
-	} else {
+	if (lil->reject_ops [opcode >> 5] & (1UL << opcode) != 0) {
 		// Trigger ENOSYS with the no-packer-found check below
 		pck = &opcode_reject;
+	} else {
+		pck = &opcode_table [opcode];
 	}
 	if (pck->pck_message == NULL) {
 		errno = ENOSYS;

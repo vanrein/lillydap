@@ -51,7 +51,7 @@ struct LillyConnection {
 	uint16_t v_major, v_minor;
 	uint16_t flags;
 	uint16_t reserverd_flags;
-	uint32_t support_ops [2];
+	uint32_t reject_ops [2];
 	struct LillyDef *def;
 	struct LillyConn *rev;
 	struct LillyConn *fwd;
@@ -74,6 +74,10 @@ struct LillyConnection {
 	//
 	// API Layer: Receive a union of parsed LDAPMessage structures
 	// TODO //
+	//
+	// API Layer: Receive a per-operation callback based on a regitstry
+	const union LillyOpRegistry *opregistry;
+	int (*lillyget_switch) ();  //TODO//TYPING
 	//
 	// API Layer: The callback variant of the standard API for C
 	// TODO //
@@ -163,154 +167,151 @@ int lillydap_simple_bind   (LDAP *ld, char *dn, char *cred, char *pw);
 int lillydap_kerberos_bind (LDAP *ld, char *dn);
 
 
-/* Flags that indicate support for certain requests or responses for
+/* Flags that indicate rejection for certain requests or responses for
  * lillyget_xxx() so for incoming packets.  Note that responeses are
- * not accepted by default!
- *
- * Take care that extended operations are not distinguished at this
- * level, at this time.  Also note that StartTLS and Cancel are both
- * extended operations; so you may have to include those more than you
- * would expect.
+ * accepted by default!  The reasoning being that usually there will
+ * be an opregistry that already filters out unsupported routines.
+ * These flags are additionally useful, by permitting more dynamicity.
  *
  * There may be a need for multiple 32-bit words to store all the
  * flags.  The basic operations go in the first word and are prefixed
- * with LILLYGETS_, the extended operations for now fit into the second
- * word and are prefixed with LILLYGETS0_
+ * with LILLYGETR_, the extended operations for now fit into the second
+ * word and are prefixed with LILLYGETR0_
  */
 
-#define LILLYGETS_BIND_REQ			(1UL <<  0)
-#define LILLYGETS_BIND_RESP			(1UL <<  1)
-#define LILLYGETS_UNBIND_REQ			(1UL <<  2)
-#define LILLYGETS_SEARCH_REQ			(1UL <<  3)
-#define LILLYGETS_SEARCHRESULT_ENTRY		(1UL <<  4)
-#define LILLYGETS_SEARCHRESULT_DONE		(1UL <<  5)
-#define LILLYGETS_MODIFY_REQ			(1UL <<  6)
-#define LILLYGETS_MODIFY_RESP			(1UL <<  7)
-#define LILLYGETS_ADD_REQ			(1UL <<  8)
-#define LILLYGETS_ADD_RESP			(1UL <<  9)
-#define LILLYGETS_DEL_REQ			(1UL << 10)
-#define LILLYGETS_DEL_RESP			(1UL << 11)
-#define LILLYGETS_MODIFYDN_REQ			(1UL << 12)
-#define LILLYGETS_MODIFYDN_RESP			(1UL << 13)
-#define LILLYGETS_COMPARE_REQ			(1UL << 14)
-#define LILLYGETS_COMPARE_RESP			(1UL << 15)
-#define LILLYGETS_ABANDON_REQ			(1UL << 16)
-#define LILLYGETS_SEARCHRESULT_REFERENCE	(1UL << 19)
-#define LILLYGETS_EXTENDED_REQ			(1UL << 23)
-#define LILLYGETS_EXTENDED_RESP			(1UL << 24)
-#define LILLYGETS_INTERMEDIATE_RESP		(1UL << 25)
+#define LILLYGETR_BIND_REQ			(1UL <<  0)
+#define LILLYGETR_BIND_RESP			(1UL <<  1)
+#define LILLYGETR_UNBIND_REQ			(1UL <<  2)
+#define LILLYGETR_SEARCH_REQ			(1UL <<  3)
+#define LILLYGETR_SEARCHRESULT_ENTRY		(1UL <<  4)
+#define LILLYGETR_SEARCHRESULT_DONE		(1UL <<  5)
+#define LILLYGETR_MODIFY_REQ			(1UL <<  6)
+#define LILLYGETR_MODIFY_RESP			(1UL <<  7)
+#define LILLYGETR_ADD_REQ			(1UL <<  8)
+#define LILLYGETR_ADD_RESP			(1UL <<  9)
+#define LILLYGETR_DEL_REQ			(1UL << 10)
+#define LILLYGETR_DEL_RESP			(1UL << 11)
+#define LILLYGETR_MODIFYDN_REQ			(1UL << 12)
+#define LILLYGETR_MODIFYDN_RESP			(1UL << 13)
+#define LILLYGETR_COMPARE_REQ			(1UL << 14)
+#define LILLYGETR_COMPARE_RESP			(1UL << 15)
+#define LILLYGETR_ABANDON_REQ			(1UL << 16)
+#define LILLYGETR_SEARCHRESULT_REFERENCE	(1UL << 19)
+#define LILLYGETR_EXTENDED_REQ			(1UL << 23)
+#define LILLYGETR_EXTENDED_RESP			(1UL << 24)
+#define LILLYGETR_INTERMEDIATE_RESP		(1UL << 25)
 
-#define LILLYGETS0_STARTTLS_REQ			(1UL << 0)
-#define LILLYGETS0_STARTTLS_RESP		(1UL << 1)
-#define LILLYGETS0_PASSWDMODIFY_REQ		(1UL << 2)
-#define LILLYGETS0_PASSWDMODIFY_RESP		(1UL << 3)
-#define LILLYGETS0_WHOAMI_REQ			(1UL << 4)
-#define LILLYGETS0_WHOAMI_RESP			(1UL << 5)
-#define LILLYGETS0_CANCEL_REQ			(1UL << 6)
-#define LILLYGETS0_CANCEL_RESP			(1UL << 7)
-#define LILLYGETS0_STARTLBURP_REQ		(1UL << 8)
-#define LILLYGETS0_STARTLBURP_RESP		(1UL << 9)
-#define LILLYGETS0_ENDLBURP_REQ			(1UL << 10)
-#define LILLYGETS0_ENDLBURP_RESP		(1UL << 11)
-#define LILLYGETS0_LBURPUPDATE_REQ		(1UL << 12)
-#define LILLYGETS0_LBURPUPDATE_RESP		(1UL << 13)
-#define LILLYGETS0_TURN_REQ			(1UL << 14)
-#define LILLYGETS0_TURN_RESP			(1UL << 15)
-#define LILLYGETS0_STARTTXN_REQ			(1UL << 16)
-#define LILLYGETS0_STARTTXN_RESP		(1UL << 17)
-#define LILLYGETS0_ENDTXN_REQ			(1UL << 18)
-#define LILLYGETS0_ENDTXN_RESP			(1UL << 19)
-#define LILLYGETS0_ABORTEDTXN_RESP		(1UL << 20)
+#define LILLYGETR0_STARTTLS_REQ			(1UL << 0)
+#define LILLYGETR0_STARTTLS_RESP		(1UL << 1)
+#define LILLYGETR0_PASSWDMODIFY_REQ		(1UL << 2)
+#define LILLYGETR0_PASSWDMODIFY_RESP		(1UL << 3)
+#define LILLYGETR0_WHOAMI_REQ			(1UL << 4)
+#define LILLYGETR0_WHOAMI_RESP			(1UL << 5)
+#define LILLYGETR0_CANCEL_REQ			(1UL << 6)
+#define LILLYGETR0_CANCEL_RESP			(1UL << 7)
+#define LILLYGETR0_STARTLBURP_REQ		(1UL << 8)
+#define LILLYGETR0_STARTLBURP_RESP		(1UL << 9)
+#define LILLYGETR0_ENDLBURP_REQ			(1UL << 10)
+#define LILLYGETR0_ENDLBURP_RESP		(1UL << 11)
+#define LILLYGETR0_LBURPUPDATE_REQ		(1UL << 12)
+#define LILLYGETR0_LBURPUPDATE_RESP		(1UL << 13)
+#define LILLYGETR0_TURN_REQ			(1UL << 14)
+#define LILLYGETR0_TURN_RESP			(1UL << 15)
+#define LILLYGETR0_STARTTXN_REQ			(1UL << 16)
+#define LILLYGETR0_STARTTXN_RESP		(1UL << 17)
+#define LILLYGETR0_ENDTXN_REQ			(1UL << 18)
+#define LILLYGETR0_ENDTXN_RESP			(1UL << 19)
+#define LILLYGETR0_ABORTEDTXN_RESP		(1UL << 20)
 
 
 /* All responses caused by reading; includes StartTLS and Cancel.
  */
-#define LILLYGETS_READER_RESP ( \
-			LILLYGETS_BIND_RESP | \
-			LILLYGETS_SEARCHRESULT_ENTRY | \
-			LILLYGETS_SEARCHRESULT_DONE | \
-			LILLYGETS_SEARCHRESULT_REFERENCE | \
-			LILLYGETS_COMPARE_RESP | \
-			LILLYGETS_INTERMEDIATE_RESP | \
-			LILLYGETS_EXTENDED_RESP )
-#define LILLYGETS0_READER_RESP ( \
-			LILLYGETS0_STARTTLS_RESP | \
-			LILLYGETS0_CANCEL_RESP )
+#define LILLYGETR_READER_RESP ( \
+			LILLYGETR_BIND_RESP | \
+			LILLYGETR_SEARCHRESULT_ENTRY | \
+			LILLYGETR_SEARCHRESULT_DONE | \
+			LILLYGETR_SEARCHRESULT_REFERENCE | \
+			LILLYGETR_COMPARE_RESP | \
+			LILLYGETR_INTERMEDIATE_RESP | \
+			LILLYGETR_EXTENDED_RESP )
+#define LILLYGETR0_READER_RESP ( \
+			LILLYGETR0_STARTTLS_RESP | \
+			LILLYGETR0_CANCEL_RESP )
 
 /* All responses caused by writing; includes StartTLS and Cancel.
  */
-#define LILLYGETS_WRITER_RESP ( \
-			LILLYGETS_BIND_RESP | \
-			LILLYGETS_MODIFY_RESP | \
-			LILLYGETS_ADD_RESP | \
-			LILLYGETS_DEL_RESP | \
-			LILLYGETS_MODIFYDN_RESP | \
-			LILLYGETS_INTERMEDIATE_RESP | \
-			LILLYGETS_EXTENDED_RESP )
-#define LILLYGETS0_WRITER_RESP ( \
-			LILLYGETS0_STARTTLS_RESP | \
-			LILLYGETS0_CANCEL_RESP )
+#define LILLYGETR_WRITER_RESP ( \
+			LILLYGETR_BIND_RESP | \
+			LILLYGETR_MODIFY_RESP | \
+			LILLYGETR_ADD_RESP | \
+			LILLYGETR_DEL_RESP | \
+			LILLYGETR_MODIFYDN_RESP | \
+			LILLYGETR_INTERMEDIATE_RESP | \
+			LILLYGETR_EXTENDED_RESP )
+#define LILLYGETR0_WRITER_RESP ( \
+			LILLYGETR0_STARTTLS_RESP | \
+			LILLYGETR0_CANCEL_RESP )
 
 /* All responses known to LDAP.
  */
-#define LILLYGETS_ALL_RESP ( \
-			LILLYGETS_READER_RESP | \
-			LILLYGETS_WRITER_RESP )
-#define LILLYGETS0_ALL_RESP ( \
-			LILLYGETS0_READER_RESP | \
-			LILLYGETS0_WRITER_RESP | \
-			LILLYGETS0_PASSWDMODIFY_RESP | \
-			LILLYGETS0_WHOAMI_RESP | \
-			LILLYGETS0_STARTLBURP_RESP | \
-			LILLYGETS0_ENDLBURP_RESP | \
-			LILLYGETS0_LBURPUPDATE_RESP | \
-			LILLYGETS0_TURN_RESP | \
-			LILLYGETS0_ENDTXN_RESP | \
-			LILLYGETS0_ABORTEDTXN_RESP )
+#define LILLYGETR_ALL_RESP ( \
+			LILLYGETR_READER_RESP | \
+			LILLYGETR_WRITER_RESP )
+#define LILLYGETR0_ALL_RESP ( \
+			LILLYGETR0_READER_RESP | \
+			LILLYGETR0_WRITER_RESP | \
+			LILLYGETR0_PASSWDMODIFY_RESP | \
+			LILLYGETR0_WHOAMI_RESP | \
+			LILLYGETR0_STARTLBURP_RESP | \
+			LILLYGETR0_ENDLBURP_RESP | \
+			LILLYGETR0_LBURPUPDATE_RESP | \
+			LILLYGETR0_TURN_RESP | \
+			LILLYGETR0_ENDTXN_RESP | \
+			LILLYGETR0_ABORTEDTXN_RESP )
 
 /* All requests involved in reading; includes StartTLS and Cancel.
  */
-#define LILLYGETS_READER_REQ ( \
-			LILLYGETS_BIND_REQ | \
-			LILLYGETS_UNBIND_REQ | \
-			LILLYGETS_ABANDON_REQ | \
-			LILLYGETS_SEARCH_REQ | \
-			LILLYGETS_COMPARE_REQ | \
-			LILLYGETS_EXTENDED_REQ )
-#define LILLYGETS0_READER_REQ ( \
-			LILLYGETS0_STARTTLS_REQ | \
-			LILLYGETS0_CANCEL_REQ )
+#define LILLYGETR_READER_REQ ( \
+			LILLYGETR_BIND_REQ | \
+			LILLYGETR_UNBIND_REQ | \
+			LILLYGETR_ABANDON_REQ | \
+			LILLYGETR_SEARCH_REQ | \
+			LILLYGETR_COMPARE_REQ | \
+			LILLYGETR_EXTENDED_REQ )
+#define LILLYGETR0_READER_REQ ( \
+			LILLYGETR0_STARTTLS_REQ | \
+			LILLYGETR0_CANCEL_REQ )
 
 /* All requests involved in writing; includes Extended for StartTLS and Cancel.
  */
-#define LILLYGETS_WRITER_REQ ( \
-			LILLYGETS_BIND_REQ | \
-			LILLYGETS_UNBIND_REQ | \
-			LILLYGETS_ABANDON_REQ | \
-			LILLYGETS_MODIFY_REQ | \
-			LILLYGETS_ADD_REQ | \
-			LILLYGETS_DEL_REQ | \
-			LILLYGETS_MODIFYDN_REQ | \
-			LILLYGETS_EXTENDED_REQ )
-#define LILLYGETS0_WRITER_REQ ( \
-			LILLYGETS0_STARTTLS_REQ | \
-			LILLYGETS0_CANCEL_REQ )
+#define LILLYGETR_WRITER_REQ ( \
+			LILLYGETR_BIND_REQ | \
+			LILLYGETR_UNBIND_REQ | \
+			LILLYGETR_ABANDON_REQ | \
+			LILLYGETR_MODIFY_REQ | \
+			LILLYGETR_ADD_REQ | \
+			LILLYGETR_DEL_REQ | \
+			LILLYGETR_MODIFYDN_REQ | \
+			LILLYGETR_EXTENDED_REQ )
+#define LILLYGETR0_WRITER_REQ ( \
+			LILLYGETR0_STARTTLS_REQ | \
+			LILLYGETR0_CANCEL_REQ )
 
 /* All requests known by LDAP.
  */
-#define LILLYGETS_ALL_REQ ( \
-			LILLYGETS_READER_REQ | \
-			LILLYGETS_WRITER_REQ )
-#define LILLYGETS0_ALL_REQ ( \
-			LILLYGETS0_READER_REQ | \
-			LILLYGETS0_WRITER_REQ | \
-			LILLYGETS0_PASSWDMODIFY_REQ | \
-			LILLYGETS0_WHOAMI_REQ | \
-			LILLYGETS0_STARTLBURP_REQ | \
-			LILLYGETS0_ENDLBURP_REQ | \
-			LILLYGETS0_LBURPUPDATE_REQ | \
-			LILLYGETS0_TURN_REQ | \
-			LILLYGETS0_ENDTXN_REQ )
+#define LILLYGETR_ALL_REQ ( \
+			LILLYGETR_READER_REQ | \
+			LILLYGETR_WRITER_REQ )
+#define LILLYGETR0_ALL_REQ ( \
+			LILLYGETR0_READER_REQ | \
+			LILLYGETR0_WRITER_REQ | \
+			LILLYGETR0_PASSWDMODIFY_REQ | \
+			LILLYGETR0_WHOAMI_REQ | \
+			LILLYGETR0_STARTLBURP_REQ | \
+			LILLYGETR0_ENDLBURP_REQ | \
+			LILLYGETR0_LBURPUPDATE_REQ | \
+			LILLYGETR0_TURN_REQ | \
+			LILLYGETR0_ENDTXN_REQ )
 
 
 /* We now define pleasing overlay names, matching the structure names in
@@ -377,7 +378,7 @@ mko (rfc4511, ModifyDNRequest, ModifyDNRequest);
 mko (rfc4511, ModifyDNResponse, ModifyDNResponse);
 mko (rfc4511, CompareRequest, CompareRequest);
 mko (rfc4511, CompareResponse, CompareResponse);
-mko (rfc4511, AbandonRequest, AbandoneRequest);
+mko (rfc4511, AbandonRequest, AbandonRequest);
 mko (rfc4511, SearchResultReference, SearchResultReference);
 mko (rfc4511, ExtendedRequest, ExtendedRequest);
 mko (rfc4511, ExtendedResponse, ExtendedResponse);
@@ -393,5 +394,88 @@ mkoer (TurnResponse);
 mko (rfc5805, TxnEndReq, TxnEndRequest);
 mko (rfc5805, TxnEndRes, TxnEndResponse);
 
+
+/* Callback operation support.  We assume a table, indexed by opcode,
+ * for each of the recognised operations.  In addition, we define
+ * a structure that can overlay such a table.  We combine them in a
+ * union structure.
+ *
+ * It would be a useful build-time test that the union has the same
+ * size as OPCODE_EXT_UNDEF * sizeof (LillyGenericOpcode).
+ */
+#define nmdop(nm) int (*nm) (LDAP *lil, \
+                                LillyPool qpool, \
+                                const LillyMsgId msgid, \
+                                const LillyPack_##nm *data, \
+                                const dercursor controls)
+#define nmdov(nm) int (*nm) (LDAP *lil, \
+                                LillyPool qpool, \
+                                const LillyMsgId msgid, \
+                                const void *null_data, \
+                                const dercursor controls)
+#define nonop(nr) void *nullop_##nr
+typedef int (*LillyGenericOpcode) (LDAP *lil,
+                                LillyPool qpool,
+                                const LillyMsgId msgid,
+                                const dercursor *data,
+                                const dercursor controls);
+typedef union LillyOpRegistry {
+	LillyGenericOpcode by_opcode [1];
+	struct LillyCallbacks {
+		nmdop (BindRequest);
+		nmdop (BindResponse);
+		nmdop (UnbindRequest);
+		nmdop (SearchRequest);
+		nmdop (SearchResultEntry);
+		nmdop (SearchResultDone);
+		nmdop (ModifyRequest);
+		nmdop (ModifyResponse);
+		nmdop (AddRequest);
+		nmdop (AddResponse);
+		nmdop (DelRequest);
+		nmdop (DelResponse);
+		nmdop (ModifyDNRequest);
+		nmdop (ModifyDNResponse);
+		nmdop (CompareRequest);
+		nmdop (CompareResponse);
+		nmdop (AbandonRequest);
+		nonop (17);
+		nonop (18);
+		nmdop (SearchResultReference);
+		nonop (20);
+		nonop (21);
+		nonop (22);
+		nonop (23);  /* No use for nmdop(ExtendedRequest)  */
+		nonop (24);  /* No use for nmdop(ExtendedResponse) */
+		nmdop (IntermediateResponse);
+		nonop (26);
+		nonop (27);
+		nonop (28);
+		nonop (29);
+		nonop (30);
+		nonop (31);
+		nmdop (StartTLSRequest);
+		nmdop (StartTLSResponse);
+		nmdop (PasswdModifyRequest);
+		nmdop (PasswdModifyResponse);
+		nmdov (WhoamiRequest);
+		nmdov (WhoamiResponse);
+		nmdop (CancelRequest);
+		nmdov (CancelResponse);
+		nmdop (StartLBURPRequest);
+		nmdop (StartLBURPResponse);
+		nmdop (EndLBURPRequest);
+		nmdov (EndLBURPResponse);
+		nmdop (LBURPUpdateRequest);
+		nmdov (LBURPUpdateResponse);
+		nmdop (TurnRequest);
+		nmdov (TurnResponse);
+		nmdov (TxnStartRequest);
+		nmdov (TxnStartResponse);
+		nmdop (TxnEndRequest);
+		nmdop (TxnEndResponse);
+		nmdov (TxnAbortedNotice);
+	} by_name;
+} LillyOpRegistry;
 
 #endif /* LILLYDAP_H */

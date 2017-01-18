@@ -1,0 +1,9 @@
+* Consider unpacking SEQUENCE OF / SET OF
+   - we have region memory, so let's use it
+   - the data will always be needed anyway
+   - generic handling: opcode table entry can list <index,subparse>
+
+* Consider regex-checking text fields with constraining syntax
+
+* Have a dictionary API to manipulate controls; gperf may be used here too
+
