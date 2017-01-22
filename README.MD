@@ -117,6 +117,33 @@ A few examples may help to explain the kind of applications for which
 LillyDAP could make a difference.
 
 
+### X.509 Certificate Store
+
+Certificates as commonly used in TLS connections are signed by Certificate
+Authorities.  All certificates have a distinguishedName (DN) to refer to their
+own place in the hierarchy, as well as to their signer's place.  These
+DN identities are precisely the locations used for objects in LDAP.
+
+This means that nothing is more natural as a certificate store than LDAP.
+It might hold a list of trusted root certificates, perhaps intermediate
+certificates and even personal certificates under a user's account-based
+location in LDAP.  The latter may be protected until users have logged on
+with the LDAP operation `BindRequest`.
+
+In general, one can search LDAP with a `SearchRequest`.  One might ask for
+the certificate by directly naming its DN (when looking for a signer, as it
+is mentioned in any signed certificate) or one might try to search for an
+[AuthorityKeyIdentifier](https://tools.ietf.org/html/rfc5280#section-4.2.1.1)
+(though an additional LDAP schema may be needed to accommodate that).
+
+Why is such a service useful?  Because it centralises and is supportive of
+automation, including provisioning.  This could be achieved with generic
+tooling such as the
+[ARPA2 SteamWorks](http://steamworks.arpa2.net)
+project.  And because it can grow to include more useful information,
+such as OpenPGP and SSH keys.
+
+
 ### OpenPGP key server
 
 It is possible to
@@ -169,6 +196,38 @@ It is even possible to do intelligent things with the UserIDs that are
 sent back.  It is possible to take OpenPGP keys apart, and pass only those
 pieces that are considered useful, so only the UserID that matches the
 requested domain could be sent out.
+
+
+### SSH Key Server
+
+Servers tend to have lists of `authorized_keys` installed in accounts.
+These lists are used to learn about keys that are welcome for login to
+those accounts.  A problem however, is that such keys are not easy to
+manage, because they are not centrally stored.
+
+  * One needs to login to a system (as `root` or as the target user) to
+    learn which keys are setup;
+  * There is no external management interface to oversee what has been
+    allowed where;
+  * There is no integral way to welcome a key into all accounts with a
+    given name, or to a group of systems' `root` account.
+  * There is no way to centrally remove an SSH key from everywhere it is
+    trusted.
+
+Modern OpenSSH implementations however, will allow commands to be run to
+retrieve information in the `authorised_keys` format.  This makes it easy
+to do all these things, especially when a centrally coordinated LDAP store
+is approached.
+
+It is possible to construct a daemon on each host, either to produce the
+`authorized_keys` information on demand, or to actively install it in the
+various users' accounts or in the location that such accounts reference.
+The daemon may be run centrally or, as long as a session lasts, in service
+of the user's session.
+
+To learn more, please
+[read the original description](http://rickywiki.vanrein.org/doku.php?id=globaldir-6-managed-ssh)
+of this idea.
 
 
 ### Privacy Filtering
