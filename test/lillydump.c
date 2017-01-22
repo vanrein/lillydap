@@ -59,6 +59,77 @@ int lillyget_BindResponse (LDAP *lil,
 	return 0;
 }
 
+int lillyget_UnbindRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_UnbindRequest *ur,
+				const dercursor controls) {
+	printf ("Got UnbindRequest\n");
+	printf ("  - payload length is %s\n", (ur->derptr == NULL) ? "absent": (ur->derlen == 0) ? "empty" : "filled?!?");
+	return 0;
+}
+
+int lillyget_SearchRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchRequest *sr,
+				const dercursor controls) {
+	printf ("Got SearchRequest\n");
+	printf (" - baseObject \"%.*s\"\n", sr->baseObject.derlen, sr->baseObject.derptr);
+	if (sr->scope.derlen != 1) {
+		printf (" ? scope has awkward size %zd instead of 1\n", sr->scope.derlen);
+	} else {
+		switch (*sr->scope.derptr) {
+		case 0:
+			printf (" - scope base\n");
+			break;
+		case 1:
+			printf (" - scope one\n");
+			break;
+		case 2:
+			printf (" - scope sub\n");
+			break;
+		default:
+			printf (" ? scope weird value %d instead of 0, 1 or 2\n", *sr->scope.derptr);
+		}
+	}
+	if (sr->derefAliases.derlen != 1) {
+		printf (" ? derefAliases has awkward size %zd instead of 1\n", sr->derefAliases.derlen);
+	} else {
+		switch (*sr->derefAliases.derptr) {
+		case 0:
+			printf (" - derefAliases neverDerefAlias\n");
+			break;
+		case 1:
+			printf (" - derefAliases derefInSearching\n");
+			break;
+		case 2:
+			printf (" - derefAliases derefFindingBaseObj\n");
+			break;
+		case 3:
+			printf (" - derefAliases derefAlways\n");
+			break;
+		default:
+			printf (" ? derefAliases weird value %d instead of 0, 1, 2 or 3\n", *sr->derefAliases.derptr);
+		}
+	}
+	// attributes SEQUENCE OF LDAPString
+	dercursor attrs = sr->attributes;
+	printf (" - attributes.derlen = %zd\n", attrs.derlen);
+	printf (" - attributes.enter.derlen = %zd\n", attrs.derlen);
+	while (attrs.derlen > 0) {
+		dercursor attr = attrs;
+		if (der_focus (&attr)) {
+			fprintf (stderr, "ERROR while focussing on attribute of SearchRequest: %s\n", strerror (errno));
+		} else {
+			printf (" - attr.derlen = %zd\n", attr.derlen);
+			printf (" - attributes \"%.*s\"\n", attr.derlen, attr.derptr);
+		}
+		der_skip (&attrs);
+	}
+	return 0;
+}
+
 int lillyget_SearchResultEntry (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -102,6 +173,27 @@ int lillyget_SearchResultReference (LDAP *lil,
 		printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
 		der_skip (&uris);
 	} while (uris.derlen > 0);
+	return 0;
+}
+
+int lillyget_SearchResultDone (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultDone *srd,
+				const dercursor controls) {
+	printf ("Got SearchResultDone\n");
+	printf (" - resultCode is %zd==1 byte valued %d\n", srd->resultCode.derlen, *srd->resultCode.derptr);
+	printf (" - matchedDN \"%.*s\"\n", srd->matchedDN.derlen, srd->matchedDN.derptr);
+	printf (" - diagnosticMessage \"%.*s\"\n", srd->diagnosticMessage.derlen, srd->diagnosticMessage.derptr);
+	if (srd->referral.derptr != NULL) {
+		dercursor uris = srd->referral;
+		do {
+			dercursor uri = uris;
+			der_enter (&uri);
+			printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
+			der_skip (&uris);
+		} while (uris.derlen > 0);
+	}
 	return 0;
 }
 
@@ -233,8 +325,11 @@ static const LillyOpRegistry opregistry = {
 	.by_name = {
 		.BindRequest = lillyget_BindRequest,
 		.BindResponse = lillyget_BindResponse,
+		.UnbindRequest = lillyget_UnbindRequest,
+		.SearchRequest = lillyget_SearchRequest,
 		.SearchResultEntry = lillyget_SearchResultEntry,
 		.SearchResultReference = lillyget_SearchResultReference,
+		.SearchResultDone = lillyget_SearchResultDone,
 	}
 };
 

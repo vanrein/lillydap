@@ -35,7 +35,8 @@ int lillyget_ldapmessage (LDAP *lil,
 	//
 	// Collect information about the operation; we will update the
 	// value later if it happens to be an ExtendedRequest/Response
-	uint8_t opcode = *op.derptr - DER_TAG_APPLICATION(0) - 0x20;
+	uint8_t opcode = *op.derptr - DER_TAG_APPLICATION(0);
+	opcode &= ~ 0x20;  // Remove constructed/not flag
 	if (opcode >= 31) {
 		errno = EBADMSG;
 		goto bail_out;
