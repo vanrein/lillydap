@@ -40,17 +40,14 @@ struct LillyConnection;
  * or more dercursor elements; the last one has derptr == NULL and derlen == 0.
  * There may be a non-NULL LillyPool that is to be cleaned up after sending.
  *
- * The procedure for adding this to an LDAP are:
- *  1. Fill the structure, set next to NULL
- *  2. Use CAS to replace a previously sampled LillyConn->put_tail with this one
- *  3. If the old put_tail was NULL, set this LillySend in LillyConn->put_head
- *  4. Otherwise, set the ->next of the old put_tail to this one
+ * The procedure for adding this to an LDAP are documented in lib/queue.c
+ * in the LillyDAP source code.  Lock-free concurrency, I feel so smug!
  */
-struct LillySend {
-	struct LillySend *put_next;
-	LillyPool opt_endpool;
+typedef struct LillySend {
+	struct LillySend *put_qnext;
+	LillyPool put_qpool;
 	dercursor cursori [1];
-};
+} LillySend;
 
 
 /* Append a addend:LillySend structure to the lil->head,lil->tail:LillySend**

@@ -1,6 +1,6 @@
-/* lillygetprint.c -- Send a binary package over LDAP, print it after delivery.
+/* lillydump.c -- Send a binary package over LDAP, print it after delivery.
  *
- * This routine passes binary data into the lillyget_* routines, until it is
+ * This program passes binary data into the lillyget_* routines, until it is
  * delivered.  At that point, the operation and all its parameters are
  * printed nicely.
  *
@@ -44,6 +44,7 @@ int lillyget_BindRequest (LDAP *lil,
 			printf (" - SASL credentias \"%.*s\"\n", br->authentication.sasl.credentials.derlen, br->authentication.sasl.credentials.derptr);
 		}
 	}
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -56,6 +57,7 @@ int lillyget_BindResponse (LDAP *lil,
 	printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
 	printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
 	printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -66,6 +68,7 @@ int lillyget_UnbindRequest (LDAP *lil,
 				const dercursor controls) {
 	printf ("Got UnbindRequest\n");
 	printf ("  - payload length is %s\n", (ur->derptr == NULL) ? "absent": (ur->derlen == 0) ? "empty" : "filled?!?");
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -127,6 +130,7 @@ int lillyget_SearchRequest (LDAP *lil,
 		}
 		der_skip (&attrs);
 	}
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -157,6 +161,7 @@ int lillyget_SearchResultEntry (LDAP *lil,
 		}
 		der_skip (&pa);
 	}
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -173,6 +178,7 @@ int lillyget_SearchResultReference (LDAP *lil,
 		printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
 		der_skip (&uris);
 	} while (uris.derlen > 0);
+	lillymem_endpool (qpool);
 	return 0;
 }
 
@@ -194,74 +200,9 @@ int lillyget_SearchResultDone (LDAP *lil,
 			der_skip (&uris);
 		} while (uris.derlen > 0);
 	}
+	lillymem_endpool (qpool);
 	return 0;
 }
-
-#if 0
-/* The following function could be used as lillyget_operation, but we have
- * moved to instead use the generic lillyget_operation that looks into the
- * lil->opregistry for function pointers, setup below.  Have a look at its
- * straightforward setup; it follows similar overlay tactics as Quick DER.
- */
-int lillyget_operation (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const int opcode,
-				const dercursor *data,
-				const dercursor controls) {
-	LillyPack_BindResponse *br = (void *) data;
-	LillyPack_SearchResultEntry *sre = (void *) data;
-	LillyPack_SearchResultReference *srr = (void *) data;
-	switch (opcode) {
-	case 1:
-		printf ("Got BindResponse\n");
-		printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
-		printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
-		printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
-		break;
-	case 4:
-		printf ("Got SearchResultEntry\n");
-		printf (" - objectName \"%.*s\"\n", sre->objectName.derlen, sre->objectName.derptr);
-		// partialAttribute SEQUENCE OF PartialAttribute
-		dercursor pa = sre->attributes;
-		der_enter (&pa);
-		while (pa.derlen > 0) {
-			dercursor type = pa;
-			// SEQUENCE { type AttributeDescription,
-			//		vals SET OF AttributeValue }
-			der_enter (&type);
-			printf (" - partialAttribute.type \"%.*s\"\n", type.derlen, type.derptr);
-			der_skip (&pa);
-			dercursor vals = pa;
-			der_enter (&vals);
-			while (vals.derlen > 0) {
-				dercursor val = vals;
-				der_enter (&val);
-				printf ("    - value \"%.*s\"\n", val.derlen, val.derptr);
-				der_skip (&vals);
-			}
-			der_skip (&pa);
-		}
-		break;
-	case 19:
-		printf ("Got SearchResultReference\n");
-		dercursor uris = *srr;
-		do {
-			dercursor uri = uris;
-			der_enter (&uri);
-			printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
-			der_skip (&uris);
-		} while (uris.derlen > 0);
-		break;
-	default:
-		printf ("Got opcode %d\n", opcode);
-		//TODO// errno reporting for now; still to move to LDAPResults
-		errno = ENOSYS;
-		return -1;
-	}
-	return 0;
-}
-#endif
 
 
 void process (LDAP *lil, char *progname, char *derfilename) {

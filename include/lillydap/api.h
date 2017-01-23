@@ -63,7 +63,7 @@ struct LillyConnection {
 	size_t get_gotten;
 	uint8_t get_head6 [6];	//TODO// overlay get_msg
 	dercursor get_msg;
-	struct LillySend *put_queue;
+	struct LillySend *put_qhead, **put_qtail;
 	//
 	// Memory management for the connection and messages
 	LillyPool cnxpool;

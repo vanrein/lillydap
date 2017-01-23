@@ -16,23 +16,73 @@
 #include "opa_primitives.h"
 
 
+/* This code gathers input from potentially many threads into one queue.
+ * As a result, it must guard the queue's tail, so that the threads append
+ * to it in a proper sequence.
+ *
+ * The lock-free concurrency schema used here models the queue as a qhead
+ * pointer, pointing to elements with qnext pointers, forming a linked list
+ * that ends in NULL.  There is always exactly one NULL pointer per queue.
+ *
+ * The qtail pointer-pointer contains the address of the NULL pointer.
+ * Well, normally, that is.  Initially, it may be set to NULL due to
+ * initialisation, which is then considered an alias for &qhead that is
+ * set to NULL by the same initialisation.  And, there may be brief period
+ * where *qtail is not NULL, but then we can spinlock for it.
+ *
+ * To change the end of the queue, a thread grabs hold of the qtail,
+ * swapping it with a new &NULL pointer.  Specifically, put_enqueue()
+ * constructs a new queue element with qnext set to NULL and will
+ * swap whatever is in qtail with a pointer to the new qnext pointer.
+ * (If qtail was NULL, it now changes to &qhead.)  It then spinlocks
+ * until *qtail is NULL, after which it swaps it with a pointer to the
+ * new queue element.  Perhaps other threads already replaced the qnext
+ * pointer in the new queue element, perhaps not.  It does not matter
+ * to the put_enqueue() routine.
+ *
+ * The result is a linear queue that will grow on the end through any
+ * number of producers.  It is now up to the single consumer in the
+ * put_event() procedure to take out the elements one by one.  The one
+ * thing this routine should be careful about is not to cleanup the
+ * queue item whose qnext is NULL, as that would be pointed to by
+ * qtail.  So, if qnext is NULL, it must first swap qtail with a
+ * pointer to qhead.  If this delivers another value than a pointer
+ * to the current queue element's qnext, then qnext obviously is going
+ * to be set to another value than NULL, so the value can be swapped
+ * back into qtail, and put_event() can spinlock until qnext has been
+ * set to another value than NULL.  Otherwise, if the pointer returned
+ * is the pointer to qnext, the only thing left to do is set qhead to
+ * NULL.  In both cases, we can now proceed to cleaning up the pool
+ * attached to the queue element, if it is non-NULL  This is likely
+ * to erase the queue element as well -- but that is not the concern
+ * of put_event() anymore.
+ *
+ * This is the third or fourth algorithm idea.  It seems that finally
+ * this is one that will work.  Lock-free concurrency is difficult...
+ * and that's why it is so much fun :-D
+ *
+ * Are there any problems left?  Yes, maybe.  On a cooperatively
+ * multitasking system, there may be so many threads willing to act
+ * that they occupy the processor in spinlocks, and no cycles go to
+ * the threads that actually advance the state of the queue to one
+ * where others break out of their spinlocks.  This would call for
+ * a yield after a number of spinlock loops (probably the number
+ * of loops during which another thread can advance the state, were
+ * it to run on the processor at the same time).
+ *
+ * From: Rick van Rein <rick@openfortress.nl>
+ */
+
+
 /* We are not particularly interested in the typing model of OPA; it means
  * including the header files everywhere, which may be better to avoid.
  */
-#define get_head(lil) OPA_load_ptr ((OPA_ptr_t *) &lil->put_head)
-#define get_tail(lil) OPA_load_ptr ((OPA_ptr_t *) &lil->put_tail)
-#define get_next(crs) OPA_load_ptr ((OPA_ptr_t *) &crs->put_next)
-#define set_head(lil,new) OPA_store_ptr ((OPA_ptr_t *) &lil->put_head, new)
-#define set_tail(lil,new) OPA_store_ptr ((OPA_ptr_t *) &lil->put_tail, new)
-#define set_next(crs,new) OPA_store_ptr ((OPA_ptr_t *) &crs->put_next, new)
-#define cas_head(lil,old,new) OPA_cas_ptr ((OPA_ptr_t *) &lil->put_head, old, new)
-#define cas_tail(lil,old,new) OPA_cas_ptr ((OPA_ptr_t *) &lil->put_tail, old, new)
-
-
-#define get_ptr(ptrptr)         ( (struct LillySend *) \
-                                OPA_load_ptr  ((OPA_ptr_t *) ptrptr) )
-#define set_ptr(ptrptr,new)     OPA_store_ptr ((OPA_ptr_t *) ptrptr, new)
 #define cas_ptr(ptrptr,old,new) OPA_cas_ptr   ((OPA_ptr_t *) ptrptr, old, new)
+#define xcg_ptr(ptrptr,new)     OPA_swap_ptr  ((OPA_ptr_t *) ptrptr, new)
+#define set_ptr(ptrptr,new)     OPA_store_ptr ((OPA_ptr_t *) ptrptr, new)
+#define get_ptr(ptrptr)         ( (LillySend *) \
+                                OPA_load_ptr  ((OPA_ptr_t *) ptrptr) )
+#define nil_ptr(ptrptr)         (NULL == get_ptr (ptrptr))
 
 
 
@@ -47,15 +97,20 @@ void lillyput_init (lillyput_signal_callback *sigcb) {
 
 /* Append a addend:LillySend structure to the lil->head,lil->tail:LillySend**
  */
-void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend) {
-	struct LillySend **ptr;
-	addend->put_next = NULL;
-	ptr = &lil->put_queue;
-	while (cas_ptr (ptr, NULL, addend) != addend) {
-		//TODO// Race condition against cleanup of this structure
-		ptr = &get_ptr (ptr)->put_next;
+void lillyput_enqueue (LillyDAP *lil, LillySend *addend) {
+	addend->put_qnext = NULL;
+	// Let's swap addend->put_qnext for qtail
+	LillySend **qtail = xcg_ptr (&lil->put_qtail, &addend->put_qnext);
+	if (qtail == NULL) {
+		// Alias as a result of initialisation, set to actual value
+		qtail = &lil->put_qhead;
 	}
-	if (*lillyput_signal_loop != NULL) {
+	while (!nil_ptr (qtail)) {
+		//TODO// Under cooperative concurrency, yield() at some point
+		;
+	}
+	set_ptr (qtail, addend);
+	if (lillyput_signal_loop != NULL) {
 		(*lillyput_signal_loop) (lil->put_fd);
 	}
 }
@@ -64,7 +119,7 @@ void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend) {
 /* Test if there is anything in the queue for LillyPut
  */
 bool lillyput_cansend (LillyDAP *lil) {
-	return (NULL != get_ptr (&lil->put_queue));
+	return (!nil_ptr (&lil->put_qhead));
 }
 
 
@@ -78,7 +133,7 @@ int lillyput_event (LDAP *lil) {
 	// First test if the head actually points to an element
 	struct LillySend *todo;
 restart:
-	todo = get_ptr (&lil->put_queue);
+	todo = get_ptr (&lil->put_qhead);
 	if (todo == NULL) {
 		//
 		// We report EAGAIN and rely on event loop hints for wakeup
@@ -91,19 +146,48 @@ restart:
 	while (crs->derlen == 0) {
 		if (crs->derptr == NULL) {
 			//
-			// Set the head to the current next field
-			struct LillySend *next = get_ptr (&todo->put_next);
+			// Now we clean up the qpool, after untangling it.
 			//
-			// Write it into the queue head pointer
-			set_ptr (&lil->put_queue, next);
+			// First, sample our qnext pointer
+			LillySend *qnext = get_ptr (&todo->put_qnext);
+			if (qnext != NULL) {
+				//
+				// We can simply overwrite qhead with qnext
+				;
+			} else {
+				//
+				// Offer to take over the &NULL pointer
+				LillySend **qtail = cas_ptr (
+							&lil->put_qtail,
+							&todo->put_qnext,
+							&lil->put_qhead);
+				if (qtail != &todo->put_qnext) {
+					//
+					// Someone wants to overwrite qnext
+					do {
+						qnext = get_ptr (
+							&todo->put_qnext);
+						//TODO// Cooperative multitask
+					} while (qnext == NULL);
+				} else {
+					//
+					// Someone will be waiting for qhead
+					// to be set to NULL by us
+					// Already done: qnext = NULL;
+					;
+				}
+			}
 			//
-			//TODO// Race condition if other works on todo->put_next
+			// Now setup qhead with the next item to read
+			set_ptr (&lil->put_qhead, qnext);
+			//
+			// We are free -- nobody references todo anymore
 			//
 			// If a memory pool is to be cleared, clear it
-			if (todo->opt_endpool) {
+			if (todo->put_qpool != NULL) {
 				//TODO// Why not make more routines idempotent?
 				//TODO// lillymem_endpool(NULL) saves call-test
-				lillymem_endpool (todo->opt_endpool);
+				lillymem_endpool (todo->put_qpool);
 				// Now assume that todo is unreachable
 			}
 			//
