@@ -32,6 +32,68 @@ pkg_search_module (
 
 
 #
+# Version Information
+#
+
+find_package (Git)
+
+exec_program (
+		${GIT_EXECUTABLE}
+		ARGS diff --quiet
+		RETURN_VALUE GIT_HAVE_CHANGES
+)
+
+exec_program (
+		${GIT_EXECUTABLE}
+		ARGS describe --tags --match 'version-*.*-*'
+		OUTPUT_VARIABLE GIT_VERSION_INFO
+)
+
+string (
+	REGEX REPLACE "^version-([1-9][0-9]*|0)[.]([1-9][0-9]*|0)-(.*)$"
+	"\\1"
+	GIT_VERSION_MAJOR
+	${GIT_VERSION_INFO}
+)
+
+string (
+	REGEX REPLACE "^version-([1-9][0-9]*|0)[.]([1-9][0-9]*|0)-(.*)$"
+	"\\2"
+	GIT_VERSION_MINOR
+	${GIT_VERSION_INFO}
+)
+
+if (GIT_HAVE_CHANGES EQUAL 0)
+
+	string (
+		REGEX REPLACE "^version-([1-9][0-9]*|0)[.]([1-9][0-9]*|0)-(.*)$"
+		"\\3"
+		GIT_VERSION_PATCHLEVEL
+		${GIT_VERSION_INFO}
+	)
+
+	set (
+		USER_SUPPLIED_PATCHLEVEL
+		"${GIT_VERSION_PATCHLEVEL}"
+		CACHE STRING "User-override for patch level under ${GIT_VERSION_MAJOR}.${GIT_VERSION_MINOR}"
+	)
+
+else()
+
+	exec_program (
+		date
+		ARGS '+%Y%m%d-%H%M%S'
+		OUTPUT_VARIABLE GIT_CHANGES_TIMESTAMP
+	)
+	set (GIT_VERSION_PATCHLEVEL "local-${GIT_CHANGES_TIMESTAMP}")
+	message (WARNING "Git reports local changes, fixing patch level to local-${GIT_CHANGES_TIMESTAMP}")
+
+	unset (USER_SUPPLIED_PATCHLEVEL CACHE)
+
+endif()
+
+
+#
 # Building
 #
 
@@ -98,10 +160,13 @@ add_custom_target (
 	SOURCES lib/msgop.gperf
 )
 
-add_dependencies (lillydapStatic msgop.tab openpa)
-add_dependencies (lillydapShared msgop.tab openpa)
+add_dependencies (lillydapStatic msgop.tab)
+add_dependencies (lillydapShared msgop.tab)
+if (NOT ${BUILD_SINGLE_THREADED})
+	add_dependencies (lillydapStatic openpa)
+	add_dependencies (lillydapShared openpa)
+endif()
 
-#TODO# Dit komt met /usr/local onterecht ook in CPack terecht
 configure_file (
 	contrib/pkgconfig/lillydap.pc.in
 	${PROJECT_BINARY_DIR}/lillydap.pc
@@ -116,7 +181,7 @@ configure_file (
 enable_testing ()
 
 add_executable (
-	lillydump.test #TODO# EXCLUDE_FROM_ALL
+	lillydump.test
 	test/lillydump.c
 	lib/mem.c
 	lib/derbuf.c
@@ -135,30 +200,32 @@ target_link_libraries (
 	${QuickDER_LDFLAGS}	#TODO# Proper form, _LDFLAGS???
 )
 
-add_executable (
-	stampede.test #TODO# EXCLUDE_FROM_ALL
-	test/stampede.c
-	lib/mem.c
-	lib/queue.c
-	lib/sillymem.c
-)
-set_target_properties (
-	stampede.test
-	PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
-)
-#TODO# Really -pthread, literally?!?
-if(THREADS_HAVE_PTHREAD_ARG)
-	target_compile_options(stampede.test "-pthread")
+if (NOT ${BUILD_SINGLE_THREADED})
+	add_executable (
+		stampede.test
+		test/stampede.c
+		lib/mem.c
+		lib/queue.c
+		lib/sillymem.c
+	)
+	set_target_properties (
+		stampede.test
+		PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
+	)
+	#TODO# Really -pthread, literally?!?
+	if(THREADS_HAVE_PTHREAD_ARG)
+		target_compile_options(stampede.test "-pthread")
+	endif()
+	target_link_libraries (
+		stampede.test
+		lillydapStatic
+		${QuickDER_LDFLAGS}	#TODO# Proper form, _LDFLAGS???
+		${CMAKE_THREAD_LIBS_INIT}	-lpthread
+	)
 endif()
-target_link_libraries (
-	stampede.test
-	lillydapStatic
-	${QuickDER_LDFLAGS}	#TODO# Proper form, _LDFLAGS???
-	${CMAKE_THREAD_LIBS_INIT}	-lpthread
-)
 
 add_executable (
-	lillypass.test #TODO# EXCLUDE_FROM_ALL
+	lillypass.test
 	test/lillypass.c
 	lib/mem.c
 	lib/derbuf.c
@@ -190,15 +257,18 @@ foreach (netpkg ${netpkgs})
 endforeach()
 
 #TODO# Test that all serials exist, in proper order, for each threadid
-add_test (
-	NAME stampede.test
-	COMMAND stampede.test 250
-)
+if (NOT ${BUILD_SINGLE_THREADED})
+	# This is a test of lock-free concurrency, useless when single-threaded
+	add_test (
+		NAME stampede.test
+		COMMAND stampede.test 250
+	)
+endif()
 
 #TODO# Test that the output matches expectations
 foreach (netpkg ${netpkgs})
 	get_filename_component (netpkgname ${netpkg} NAME)
-	foreach (level 0 1 2 3 4)
+	foreach (level 0 1 2)  #TODO# 3 4
 		add_test (
 			NAME lillypass-level${level}-netpkg-${netpkgname}
 			COMMAND lillypass.test ${level} ${netpkg}
@@ -239,12 +309,21 @@ install (
 # PACKAGING
 #
 
+set (CPACK_PACKAGE_VERSION_MAJOR ${GIT_VERSION_MAJOR})
+set (CPACK_PACKAGE_VERSION_MINOR ${GIT_VERSION_MINOR})
+if (GIT_HAVE_CHANGES EQUAL 0)
+	set (CPACK_PACKAGE_VERSION_PATCH ${USER_SUPPLIED_PATCHLEVEL})
+else()
+	set (CPACK_PACKAGE_VERSION_PATCH "local-${GIT_CHANGES_TIMESTAMP}")
+endif()
+
 set (CPACK_BUNDLE_NAME "LillyDAP")
 set (CPACK_PACKAGE_CONTACT "Rick van Rein <rick@openfortress.nl>")
 set (CPACK_PACKAGE_VENDOR "ARPA2.net")
 set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "LDAP devkit, turns LDAP operations into functions/callbacks")
 set (CPACK_PACKAGE_DESCRIPTION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/README.MD)
 set (CPACK_GENERATOR DEB RPM)
+set (CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 
 include (CPack)
 

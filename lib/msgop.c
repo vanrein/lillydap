@@ -5,6 +5,7 @@
 
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include <errno.h>
 
@@ -20,7 +21,6 @@
  * will because the responsibility of lillyget_ldapmessage() -- which it
  * may pass down to further lillyget_xxx() or other functions.
  */
-//TODO// Consider adding an optional qpool, whose responsibility is passed in.
 int lillyget_ldapmessage (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -49,7 +49,6 @@ int lillyget_ldapmessage (LDAP *lil,
 	}
 	//
 	// Request a memory pool for the msgid
-	//TODO// Does it improve anything if we share request/response spaces?
 	if (qpool == NULL) {
 		qpool = lillymem_newpool ();
 		if (qpool == NULL) {
@@ -110,7 +109,6 @@ rerun_extended:
 	//
 	// Pass down the information -- and the responsibility
 	// The response value also comes from lillyget_operation()
-	//TODO// Parse the controls?  Or better to provide lookups maybe?
 	return lil->lillyget_operation (lil, qpool, msgid, opcode, data, controls);
 	//
 	// Upon failure, cleanup and report the failure to the upstream
@@ -150,11 +148,10 @@ size_t qder2b_prefixhead (uint8_t *dest_opt, uint8_t header, size_t len) {
 
 
 /* Send an operation based on the given msgid, operation and control.
-//TODO// Passing a dercursor by value means it gets copied -- nice for async?
 //TODO// Run the same code twice, first with NULL, then loop back with a ptr
  */
 int lillyput_operation (LDAP *lil,
-				const LillyPool qpool,
+				LillyPool qpool,
 				const LillyMsgId msgid,
 				const uint8_t opcode,
 				const dercursor *data,
@@ -185,9 +182,9 @@ int lillyput_operation (LDAP *lil,
 	// Count the number of bytes for the controls
 	if (controls.derptr != NULL) {
 		totlen += qder2b_prefixhead (NULL,
-				DER_TAG_CONTEXT(0),
+				DER_TAG_CONTEXT(0) | 0x20,
 				qder2b_prefixhead (NULL,
-					DER_TAG_SEQUENCE,
+					DER_TAG_SEQUENCE | 0x20,
 					controls.derlen));
 	}
 	//
@@ -216,13 +213,15 @@ int lillyput_operation (LDAP *lil,
 				controls.derptr,
 				controls.derlen);
 		totlen = qder2b_prefixhead (NULL,
-				DER_TAG_CONTEXT(0),
+				DER_TAG_CONTEXT(0) | 0x20,
 				qder2b_prefixhead (NULL,
 					DER_TAG_SEQUENCE,
 					controls.derlen));
 	}
 	//
 	// Perform the actual packing in the now-prepared buffer
+	// Start counting totlen from 0 and hope to find the same again
+	totlen = 0;
 	totlen += der_pack (opcode_table [opcode].pck_message,
 				data,
 				dermsg.derptr + dermsg.derlen - totlen);
@@ -231,25 +230,25 @@ int lillyput_operation (LDAP *lil,
 	mid = msgid;
 	uint8_t midlen = 0;
 	while (mid > 0) {
-		dermsg.derptr [dermsg.derlen - totlen++] = (mid & 0xff);
+		dermsg.derptr [dermsg.derlen - ++totlen] = (mid & 0xff);
 		mid >>= 8;
 		midlen++;
 	}
-	totlen = qder2b_prefixhead (dermsg.derptr + dermsg.derlen - totlen,
+	totlen += qder2b_prefixhead (dermsg.derptr + dermsg.derlen - totlen,
 			DER_TAG_INTEGER,
-			totlen);
+			midlen) - midlen;
 	//
 	// Now construct the LDAPMessage as a SEQUENCE
 	totlen = qder2b_prefixhead (dermsg.derptr + dermsg.derlen - totlen,
-			DER_TAG_SEQUENCE,
+			DER_TAG_SEQUENCE | 0x20,
 			totlen);
 #if 1
 	if (totlen != dermsg.derlen) {
-		fprintf (stderr, "ERROR: Reproduced length %z instead of %z\n", totlen, dermsg.derlen);
+		fprintf (stderr, "ERROR: Reproduced length %zd instead of %zd\n", totlen, dermsg.derlen);
 	}
 #endif
 	//
 	// Pass the resulting DER message on to lillyput_dercursor()
-	return lil->lillyput_dercursor (lil, dermsg);
+	return lil->lillyput_dercursor (lil, qpool, dermsg);
 }
 

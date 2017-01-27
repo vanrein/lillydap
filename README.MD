@@ -7,7 +7,7 @@
 
 Most of today's developers focus solely on HTTP to carry their data
 definitions.  This even happens when LDAP would be a better carrier, which
-it usually is, due to much richer and finer-grained syntax and semantics.
+it usually is because of its richer and finer-grained syntax and semantics.
 
 But this isn't just about standards; it's also about the technology
 implementing it.  The most well-known open source directory is
@@ -19,7 +19,7 @@ and
 storage-centric, though they add dynamicity options through mechanisms like
 [overlays](http://www.openldap.org/doc/admin24/overlays.html)
 and
-[stored procedures with triggers](https://people.apache.org/~ersiner/ldapcon.2007/LDAPcon.2007_LDAP.Stored.Procedures.and.Triggers.in.ApacheDS_by.Ersin.Er_Paper.pdf)
+[stored procedures with triggers](https://people.apache.org/~ersiner/ldapcon.2007/LDAPcon.2007_LDAP.Stored.Procedures.and.Triggers.in.ApacheDS_by.Ersin.Er_Paper.pdf).
 In all cases, dynamicity is a bit of an afterthought, storage is central and
 there is only limited facilitation for dynamicity.
 
@@ -352,4 +352,13 @@ The reverse flow direction will normally not be used until an
 [LDAP Turn operation](https://tools.ietf.org/html/rfc4531)
 has asked for it, but as should be clear from this, Nginx holds good cards
 for formulating treatment of the Turn operation in its configuration files.
+
+## Related Work
+
+  * [ldapjs](http://ldapjs.org)
+    implements LDAP in JavaScript; it can use Node.JS to run as a server.
+    It can support middleware such as filters and proxies.
+
+  * [SteamWorks Crank](http://steamworks.arpa2.net/crank.html)
+    makes LDAP content available as JSON structures over a RESTful API.
 

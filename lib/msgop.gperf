@@ -297,10 +297,6 @@ static const struct packer_info opcode_table [] = {
 
 #define opcode_reject ( opcode_table [31] )
 
-//TODO:NOGO// #if sizeof(opcode_table) != OPCODE_EXT_UNDEF * sizeof(struct packer_info)
-//TODO:NOGO// #  error "Number of entries in opcode_table does not equal OPCODE_EXT_UNDEF"
-//TODO:NOGO// #endif
-
 
 %}
 

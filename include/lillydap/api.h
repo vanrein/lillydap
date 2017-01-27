@@ -86,6 +86,7 @@ struct LillyConnection {
 	int (*lillyget_ldapmessage) ();	//TODO//TYPING//MOVE_TO_STATIC
 	int (*lillyget_operation) ();	//TODO//TYPING//MOVE_TO_STATIC
 	int (*lillyput_operation) ();	//TODO//TYPING//MOVE_TO_STATIC
+	int (*lillyput_ldapmessage) ();	//TODO//TYPING//MOVE_TO_STATIC
 	int (*lillyput_dercursor) ();	//TODO//TYPING//MOVE_TO_STATIC
 	// Functions to implement the standard API
 	// (RFC-compatible wrappers are defined below)
@@ -125,12 +126,17 @@ int lillyget_operation (LDAP *lil,
  * to the network.
  */
 int lillyput_operation (LDAP *lil,
-				const LillyPool qpool,
+				LillyPool qpool,
 				const LillyMsgId msgid,
 				const uint8_t opcode,
 				const dercursor *data,
 				const dercursor controls);
-int lillyput_dercursor (LDAP *lil, const dercursor dermsg);  //TODO//
+int lillyput_ldapmessage (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const dercursor operation,
+				const dercursor controls);
+int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg);
 void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend);
 bool lillyput_cansend (LillyDAP *lil);
 int lillyput_event (LDAP *lil);

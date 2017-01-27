@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: LillyDAP
+Description: Little LDAP kernel: Event-based, lock-free, LDAP as storage RPC
+Version: 0.1.1
+Requires: Quick-DER
+Cflags: -I${includedir}
+Libs: -L${libdir} -llillydap

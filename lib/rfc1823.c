@@ -16,6 +16,9 @@
  */
 
 
+#include <lillydap/api.h>
+
+
 //TODO// What a drag this seems, now the crisp API of LillyDAP is clear  :-S
 
 

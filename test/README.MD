@@ -57,5 +57,8 @@ appear at the output just as they are on the input, with no more than
 encoding changes caused by the variability in the BER format.  In many
 cases however, BER is sent as DER, and that would always be the same.
 
-Needless to say that the next step is a filtering utility.
+Needless to say that the next step is a filtering utility.  Or one that
+actually implements some functionality for which it needs to read and
+write.
+
 

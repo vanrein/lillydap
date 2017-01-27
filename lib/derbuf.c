@@ -11,49 +11,6 @@
 #include <lillydap/api.h>
 
 
-
-#ifdef TODO_PREFER_OLD_FUNCTION_API
-/* This function helps a network component determine if it has collected
- * the bytes of a complete DER value.  This can be used to invoke parsers
- * that assume that a full value has been loaded.  Examples are LDAP and
- * GSSAPI.
- *
- * The functions does not copy the buffers, but assumes that the network
- * layer will grow the buffer until it is complete; to help, this function
- * informs the network layer how much more should be loaded before the buffer
- * is full.  (Or the will return maxint if they don't know.)  Upon error,
- * -1 is returned and errno set.  A complete buffer returns the DER value
- * size which is then less than or equal to the size provided.  In the case
- * where not enough has been provided to parse the length, the value in
- * retsz_toolittle is returned; you should set that to a value higher
- * than buflen, even if just buflen+1 -- so you know you need to keep
- * chasing for input.  You might choose to set it to a value < 0 when
- * you find it reasonable to expect that a complete header should be
- * there, but keep in mind that errno will not be set when this value
- * is returned.
- *
- * As soon as the function returns rv where (rv > 0) && (rv <= buflen),
- * one DER value can be processed at <buf,rv> and a remainder may be
- * left at <buf+rv,buflen-rv>.
- */
-size_t derbuf_datasize (uint8_t *buf, size_t buflen, size_t retsz_toolittle) {
-	size_t len;
-	uint8_t hlen;
-	uint8_t tag;
-	dercursor crs;
-	if (buflen < 2) {
-		return retsz_toolittle;
-	}
-	crs.derptr = buf;
-	crs.derlen = buflen;
-	if (der_header (&crs, &tag, &len, &hlen) == -1) {
-		return -1;
-	}
-	return len;
-}
-#endif
-
-
 /* Signal that information is available for reading to lillyget_xxx()
  * processing.  This first loads a header, determines the total length to
  * read and allocates a buffer for it; then, it incrementally loads the

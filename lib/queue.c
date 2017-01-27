@@ -5,6 +5,7 @@
 
 
 #include <stdint.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -13,7 +14,9 @@
 #include <lillydap/api.h>
 #include <lillydap/queue.h>
 
-#include "opa_primitives.h"
+#ifndef CONFIG_SINGLE_THREADED
+#   include "opa_primitives.h"
+#endif
 
 
 /* This code gathers input from potentially many threads into one queue.
@@ -76,14 +79,35 @@
 
 /* We are not particularly interested in the typing model of OPA; it means
  * including the header files everywhere, which may be better to avoid.
+ *
+ * Note: These macros are only used below, they are not a generic API.
+ *       Because of this, we have not had a lot of zeal in placing bracing.
  */
-#define cas_ptr(ptrptr,old,new) OPA_cas_ptr   ((OPA_ptr_t *) ptrptr, old, new)
-#define xcg_ptr(ptrptr,new)     OPA_swap_ptr  ((OPA_ptr_t *) ptrptr, new)
-#define set_ptr(ptrptr,new)     OPA_store_ptr ((OPA_ptr_t *) ptrptr, new)
-#define get_ptr(ptrptr)         ( (LillySend *) \
-                                OPA_load_ptr  ((OPA_ptr_t *) ptrptr) )
-#define nil_ptr(ptrptr)         (NULL == get_ptr (ptrptr))
 
+#ifndef CONFIG_SINGLE_THREADED
+
+/* The atomic operations from OpenPA make us lock-free yet stable */
+# define cas_ptr(ptrptr,old,new) OPA_cas_ptr   ((OPA_ptr_t *) ptrptr, old, new)
+# define xcg_ptr(ptrptr,new)     OPA_swap_ptr  ((OPA_ptr_t *) ptrptr, new)
+# define set_ptr(ptrptr,new)     OPA_store_ptr ((OPA_ptr_t *) ptrptr, new)
+# define get_ptr(ptrptr)         ( (LillySend *) \
+                                 OPA_load_ptr  ((OPA_ptr_t *) ptrptr) )
+# define nil_ptr(ptrptr)         (NULL == get_ptr (ptrptr))
+
+#else /* CONFIG_SINGLE_THREADED */
+
+
+/* No need for atomic operations when we are sure to have only one thread */
+static void *_tmp;
+# define cas_ptr(ptrptr,old,new) ((*ptrptr == old) \
+                                 ? (*ptrptr=new, old) \
+                                 : (*ptrptr))
+# define xcg_ptr(ptrptr,new)     (_tmp = (*ptrptr), (*ptrptr)= new, _tmp)
+# define set_ptr(ptrptr,new)     (*ptrptr = new)
+# define get_ptr(ptrptr)         (*ptrptr)
+# define nil_ptr(ptrptr)         (NULL == get_ptr (ptrptr))
+
+#endif /* CONFIG_SIGNLE_THREADED */
 
 
 /* Initialise the signaling routine that hints that lillyput_event() may work.
@@ -199,6 +223,8 @@ restart:
 	//
 	// Send out what we have in the current dercursor *crs
 	//TODO// Pile up multiple elements?  Difficult to combine ok with error
+	// Simple enough for EAGAIN / EWOULDBLOCK, but there are still the other errors...
+	// http://stackoverflow.com/questions/19391208/when-a-non-blocking-send-only-transfers-partial-data-can-we-assume-it-would-r
 	ssize_t sent = write (lil->put_fd, crs->derptr, crs->derlen);
 	if (sent > 0) {
 		crs->derlen -= sent;
@@ -207,5 +233,24 @@ restart:
 	//
 	// Return the outcome of the send operation
 	return sent;
+}
+
+
+/* Enqueue a message in a single dercursor.  Normally, we supply a series of
+ * dermessages, so this is just there to mirror properly; it may actually be
+ * useful as a value for a lillyget_dercursor() pointer.
+ */
+int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg) {
+	LillySend *lise = lillymem_alloc (qpool,
+				sizeof(LillySend) + sizeof(dercursor));
+	if (lise == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
+	lise->put_qpool = qpool;
+	memcpy (&lise->cursori [0], &dermsg, sizeof (dercursor));
+	memset (&lise->cursori [1], 0,       sizeof (dercursor));
+	lillyput_enqueue (lil, lise);
+	return 0;
 }
 

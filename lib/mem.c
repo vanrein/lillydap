@@ -158,7 +158,7 @@ void lillymsg_id_free (LDAP *lil, LillyMsgId cango) {
 		}
 		layer = layer->next_layer;
 	}
-	//TODO// We should never end up here; maybe we're leaking memory
+	// We should never end up here; maybe we're leaking memory
 }
 
 
@@ -176,7 +176,7 @@ LillyPool lillymsg_id_qpool (LDAP *lil, LillyMsgId mid) {
 		}
 		layer = layer->next_layer;
 	}
-	//TODO// We should never end up here; maybe we're confused
+	// We should never end up here; maybe we're confused
 	return NULL;
 }
 

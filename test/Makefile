@@ -1,4 +1,4 @@
-TARGETS=lillydump stampede #lillypass
+TARGETS=lillydump stampede lillypass
 
 lillydump_OBJS = lillydump.o sillymem.o
 lillydump_LIBS = ../lib/mem.o ../lib/derbuf.o ../lib/dermsg.o ../lib/msgop.o ../lib/opswi.o ../lib/queue.o /usr/local/src/quick-der/lib/der_header.o /usr/local/src/quick-der/lib/der_unpack.o /usr/local/src/quick-der/lib/der_pack.o /usr/local/src/quick-der/lib/der_skipenter.o

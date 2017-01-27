@@ -8,7 +8,7 @@
  * entire pool can go.
  *
  * Unlike the rest of LilyDAP, you must not assume that these routines
- * are re-entrant.  TODO: Maybe add a crudo global lock to lift this?
+ * are re-entrant.
  *
  * From: Rick van Rein <rick@openfortress.nl>
  */
