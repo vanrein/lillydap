@@ -55,19 +55,18 @@ override.  Or, to automate this choice, you could use
 We advise out-of-source builds, even though we have a few items on our
 TODO list that require preparations inside the code tree for now.
 
-    cd lillydap
-    mkdir build
-    cd build
+    mkdir /tmp/build
+    cd /tmp/build
 
 In this build directory, configure using defaults, or use a variant as
 described under configuration.  You need to reference the source tree
 relative to the build directory, so `..` after the preparation above,
 
-    cmake ..
+    cmake /path/to/lillydap
 
 Then proceed to building,
 
-    make
+    cmake --build .
 
 You can now run the package's tests,
 

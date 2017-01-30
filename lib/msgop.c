@@ -207,6 +207,10 @@ int lillyput_operation (LDAP *lil,
 	}
 	dermsg.derlen = totlen;
 	//
+	// Perform the actual packing in the now-prepared buffer
+	// Start counting totlen from 0 and hope to find the same again
+	totlen = 0;
+	//
 	// If controls were provided, add them
 	if (controls.derptr != NULL) {
 		memcpy (dermsg.derptr + dermsg.derlen - controls.derlen,
@@ -219,12 +223,17 @@ int lillyput_operation (LDAP *lil,
 					controls.derlen));
 	}
 	//
-	// Perform the actual packing in the now-prepared buffer
-	// Start counting totlen from 0 and hope to find the same again
-	totlen = 0;
+	// Precede with the packed data
 	totlen += der_pack (opcode_table [opcode].pck_message,
 				data,
 				dermsg.derptr + dermsg.derlen - totlen);
+	//
+	// Exceptional -- due to IMPLICIT TAGS
+	// If packaging started with DER_PACK_STORE, we may need to set
+	// the flag that this is a composite field (but not when empty)
+	if (dermsg.derptr [1 + dermsg.derlen - totlen] > 0) {
+		dermsg.derptr [0 + dermsg.derlen - totlen] |= 0x20;
+	}
 	//
 	// Prefix the MessageID
 	mid = msgid;
@@ -242,7 +251,7 @@ int lillyput_operation (LDAP *lil,
 	totlen = qder2b_prefixhead (dermsg.derptr + dermsg.derlen - totlen,
 			DER_TAG_SEQUENCE | 0x20,
 			totlen);
-#if 1
+#if 0
 	if (totlen != dermsg.derlen) {
 		fprintf (stderr, "ERROR: Reproduced length %zd instead of %zd\n", totlen, dermsg.derlen);
 	}

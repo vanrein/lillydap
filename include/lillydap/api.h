@@ -484,4 +484,35 @@ typedef union LillyOpRegistry {
 	} by_name;
 } LillyOpRegistry;
 
+#define putop(opcd,opnm) static inline lillyput_##opnm (LDAP *lil, \
+			LillyPool qpool, const LillyMsgId mid, \
+			const LillyPack_##opnm *arg, const dercursor ctl) { \
+				return lillyput_operation (lil, qpool, mid, \
+					opcd, \
+					(const dercursor *) arg, \
+					ctl); \
+			}
+putop (0, BindRequest)
+putop (1, BindResponse)
+putop (2, UnbindRequest)
+putop (3, SearchRequest)
+putop (4, SearchResultEntry)
+putop (5, SearchResultDone)
+putop (6, ModifyRequest)
+putop (7, ModifyResponse)
+putop (8, AddRequest)
+putop (9, AddResponse)
+putop (10, DelRequest)
+putop (11, DelResponse)
+putop (12, ModifyDNRequest)
+putop (13, ModifyDNResponse)
+putop (14, CompareRequest)
+putop (15, CompareResponse)
+putop (16, AbandonRequest)
+putop (19, SearchResultReference)
+putop (23, ExtendedRequest)
+putop (24, ExtendedResponse)
+putop (25, IntermediateResponse)
+
+
 #endif /* LILLYDAP_H */

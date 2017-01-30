@@ -10,10 +10,9 @@
  *  0. Directly pass LDAPMessage chunks as a dercursor
  *  1. Pass a LDAPMessage after splitting into request, opcode and controls
  *  2. Pass LDAP operations with unpacked data, but use the same code for each
- *  3. Pass LDAP operations through individual operations (big risk of ENOSYS)
+ *  3. Pass LDAP operations through individual operations (chance of ENOSYS)
  *  4. The LDAP operations unpack the controls, and later pack them again
  *
- * TODO: level 3 still does what it did in lillydump.
  * TODO: level 4 has not been implemented yet.
  *
  * Reading / writing is highly structured, so it can be used for testing.
@@ -37,177 +36,6 @@
 #include <lillydap/mem.h>
 
 #include <quick-der/api.h>
-
-
-int lillypass_BindRequest (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_BindRequest *br,
-				const dercursor controls) {
-	printf ("Got BindRequest\n");
-	printf (" - version in %d bytes %02x,...\n", br->version.derlen, br->version.derptr [0]);
-	printf (" - name \"%.*s\"\n", br->name.derlen, br->name.derptr);
-	if (br->authentication.simple.derptr != NULL) {
-		printf (" - simple authentication with \"%.*s\"\n", br->authentication.simple.derlen, br->authentication.simple.derptr);
-	}
-	if (br->authentication.sasl.mechanism.derptr != NULL) {
-		printf (" - SASL mechanism \"%.*s\"\n", br->authentication.sasl.mechanism.derlen, br->authentication.sasl.mechanism.derptr);
-		if (br->authentication.sasl.credentials.derptr != NULL) {
-			printf (" - SASL credentias \"%.*s\"\n", br->authentication.sasl.credentials.derlen, br->authentication.sasl.credentials.derptr);
-		}
-	}
-	return 0;
-}
-
-int lillypass_BindResponse (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_BindResponse *br,
-				const dercursor controls) {
-	printf ("Got BindResponse\n");
-	printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
-	printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
-	printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
-	return 0;
-}
-
-int lillypass_UnbindRequest (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_UnbindRequest *ur,
-				const dercursor controls) {
-	printf ("Got UnbindRequest\n");
-	printf ("  - payload length is %s\n", (ur->derptr == NULL) ? "absent": (ur->derlen == 0) ? "empty" : "filled?!?");
-	return 0;
-}
-
-int lillypass_SearchRequest (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_SearchRequest *sr,
-				const dercursor controls) {
-	printf ("Got SearchRequest\n");
-	printf (" - baseObject \"%.*s\"\n", sr->baseObject.derlen, sr->baseObject.derptr);
-	if (sr->scope.derlen != 1) {
-		printf (" ? scope has awkward size %zd instead of 1\n", sr->scope.derlen);
-	} else {
-		switch (*sr->scope.derptr) {
-		case 0:
-			printf (" - scope base\n");
-			break;
-		case 1:
-			printf (" - scope one\n");
-			break;
-		case 2:
-			printf (" - scope sub\n");
-			break;
-		default:
-			printf (" ? scope weird value %d instead of 0, 1 or 2\n", *sr->scope.derptr);
-		}
-	}
-	if (sr->derefAliases.derlen != 1) {
-		printf (" ? derefAliases has awkward size %zd instead of 1\n", sr->derefAliases.derlen);
-	} else {
-		switch (*sr->derefAliases.derptr) {
-		case 0:
-			printf (" - derefAliases neverDerefAlias\n");
-			break;
-		case 1:
-			printf (" - derefAliases derefInSearching\n");
-			break;
-		case 2:
-			printf (" - derefAliases derefFindingBaseObj\n");
-			break;
-		case 3:
-			printf (" - derefAliases derefAlways\n");
-			break;
-		default:
-			printf (" ? derefAliases weird value %d instead of 0, 1, 2 or 3\n", *sr->derefAliases.derptr);
-		}
-	}
-	// attributes SEQUENCE OF LDAPString
-	dercursor attrs = sr->attributes;
-	printf (" - attributes.derlen = %zd\n", attrs.derlen);
-	printf (" - attributes.enter.derlen = %zd\n", attrs.derlen);
-	while (attrs.derlen > 0) {
-		dercursor attr = attrs;
-		if (der_focus (&attr)) {
-			fprintf (stderr, "ERROR while focussing on attribute of SearchRequest: %s\n", strerror (errno));
-		} else {
-			printf (" - attr.derlen = %zd\n", attr.derlen);
-			printf (" - attributes \"%.*s\"\n", attr.derlen, attr.derptr);
-		}
-		der_skip (&attrs);
-	}
-	return 0;
-}
-
-int lillypass_SearchResultEntry (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_SearchResultEntry *sre,
-				const dercursor controls) {
-	printf ("Got SearchResultEntry\n");
-	printf (" - objectName \"%.*s\"\n", sre->objectName.derlen, sre->objectName.derptr);
-	// partialAttribute SEQUENCE OF PartialAttribute
-	dercursor pa = sre->attributes;
-	der_enter (&pa);
-	while (pa.derlen > 0) {
-		dercursor type = pa;
-		// SEQUENCE { type AttributeDescription,
-		//		vals SET OF AttributeValue }
-		der_enter (&type);
-		printf (" - partialAttribute.type \"%.*s\"\n", type.derlen, type.derptr);
-		der_skip (&pa);
-		dercursor vals = pa;
-		der_enter (&vals);
-		while (vals.derlen > 0) {
-			dercursor val = vals;
-			der_enter (&val);
-			printf ("    - value \"%.*s\"\n", val.derlen, val.derptr);
-			der_skip (&vals);
-		}
-		der_skip (&pa);
-	}
-	return 0;
-}
-
-int lillypass_SearchResultReference (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_SearchResultReference *srr,
-				const dercursor controls) {
-	printf ("Got SearchResultReference\n");
-	dercursor uris = *srr;
-	do {
-		dercursor uri = uris;
-		der_enter (&uri);
-		printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
-		der_skip (&uris);
-	} while (uris.derlen > 0);
-	return 0;
-}
-
-int lillypass_SearchResultDone (LDAP *lil,
-				LillyPool qpool,
-				const LillyMsgId msgid,
-				const LillyPack_SearchResultDone *srd,
-				const dercursor controls) {
-	printf ("Got SearchResultDone\n");
-	printf (" - resultCode is %zd==1 byte valued %d\n", srd->resultCode.derlen, *srd->resultCode.derptr);
-	printf (" - matchedDN \"%.*s\"\n", srd->matchedDN.derlen, srd->matchedDN.derptr);
-	printf (" - diagnosticMessage \"%.*s\"\n", srd->diagnosticMessage.derlen, srd->diagnosticMessage.derptr);
-	if (srd->referral.derptr != NULL) {
-		dercursor uris = srd->referral;
-		do {
-			dercursor uri = uris;
-			der_enter (&uri);
-			printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
-			der_skip (&uris);
-		} while (uris.derlen > 0);
-	}
-	return 0;
-}
 
 
 void process (LDAP *lil, char *progname, char *derfilename) {
@@ -258,13 +86,13 @@ void setup (void) {
 
 static const LillyOpRegistry opregistry = {
 	.by_name = {
-		.BindRequest = lillypass_BindRequest,
-		.BindResponse = lillypass_BindResponse,
-		.UnbindRequest = lillypass_UnbindRequest,
-		.SearchRequest = lillypass_SearchRequest,
-		.SearchResultEntry = lillypass_SearchResultEntry,
-		.SearchResultReference = lillypass_SearchResultReference,
-		.SearchResultDone = lillypass_SearchResultDone,
+		.BindRequest = lillyput_BindRequest,
+		.BindResponse = lillyput_BindResponse,
+		.UnbindRequest = lillyput_UnbindRequest,
+		.SearchRequest = lillyput_SearchRequest,
+		.SearchResultEntry = lillyput_SearchResultEntry,
+		.SearchResultReference = lillyput_SearchResultReference,
+		.SearchResultDone = lillyput_SearchResultDone,
 	}
 };
 
@@ -300,8 +128,8 @@ int main (int argc, char *argv []) {
 	lil->lillyget_operation   =
 	lil->lillyput_operation   = lillyput_operation;
 	//
-	// ...and then we turn it back depending on the level
-	char level = '\0';
+	// ...and then we gradually turn it back depending on the level
+	char level = 'X';
 	if (strlen (argv [1]) == 1) {
 		level = argv [1] [0];
 	}
@@ -313,23 +141,22 @@ int main (int argc, char *argv []) {
 	case '4':
 		fprintf (stderr, "%s: Level 4 is not yet implemented\n",
 					argv [0]);
+		//TODO// Replace opregistry with control-unpackers-repackers
 		// and fallthrough...
 	case '3':
 		lil->lillyget_operation   = lillyget_operation;
+		lil->opregistry = &opregistry;
 		// and fallthrough...
 	case '2':
 		lil->lillyget_ldapmessage = lillyget_ldapmessage;
 		// and fallthrough...
 	case '1':
-		lil->lillyget_dercursor = lillyget_dercursor;
+		lil->lillyget_dercursor   = lillyget_dercursor;
 		// and fallthrough...
 	case '0':
 		// Keep everything as-is, passing as directly as possible
 		break;
 	}
-	//
-	// For level 4 we need the operation registry
-	lil->opregistry = &opregistry;
 	//
 	// Allocate a connection pool
 	lil->cnxpool = lillymem_newpool ();

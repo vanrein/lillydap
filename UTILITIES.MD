@@ -24,6 +24,8 @@ Do not rely on this if efficiency or scalability are among your concerns.
 
 ## TLS Utilities
 
+**TODO**
+
 These utilities implement the StartTLS operation, in the service of
 encryption and possibly authentication.  One implementation works
 by passing control over the
@@ -32,6 +34,8 @@ and harvest the remote identity as an authenticated identity.
 
 
 ## Authentication Utilities
+
+**TODO**
 
 These utilities help with the Bind and Unbind operations.  Versions for the
 client and server side exist.  There is no support for Simple authantication,
@@ -50,6 +54,8 @@ operation is also included in the utilities.
 
 ## Authorisation Utilities
 
+**TODO**
+
 There is an option in LDAP to authorise a user identity after authentication,
 based on the control for
 [Proxied Authorization](https://tools.ietf.org/html/rfc4370)
@@ -59,6 +65,8 @@ operation.
 
 
 ## Utility Support for InternetWide / ARPA2
+
+**TODO**
 
 The utilities described above integrate well with the ARPA2 projects,
 making this  fit in with the InternetWide Architecture, in the following

@@ -268,7 +268,7 @@ endif()
 #TODO# Test that the output matches expectations
 foreach (netpkg ${netpkgs})
 	get_filename_component (netpkgname ${netpkg} NAME)
-	foreach (level 0 1 2)  #TODO# 3 4
+	foreach (level 0 1 2 3)  #TODO# 4
 		add_test (
 			NAME lillypass-level${level}-netpkg-${netpkgname}
 			COMMAND lillypass.test ${level} ${netpkg}
