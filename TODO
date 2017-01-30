@@ -9,16 +9,6 @@
    - the data will always be needed anyway
    - generic handling: opcode table entry can list <index,subparse>
 
-* Support individual operations such as lillyput_BindRequest()
-   - a generic version goes into opswi.c, as it reverses lillyget_operation()
-   - let's name the generic version lillyput_generic_operation()
-   - in addition, there are wrapper functions lillyput_BindRequest()
-   - wrappers can come as static inline functions, but can you point to them?
-   - http://stackoverflow.com/questions/8885665/c-pointer-to-inline-function
-   - should test this at varying -O levels and on various compilers == trouble
-   - it is simple to provide additional non-inlined functions in the library
-   - this is cheap in both .so and .a flavours -- the latter with inidividual .o
-
 * Advance the testing framework
    - check not only the exit code, but also the generated output
    - see test/CMatch.c which starts off this idea
@@ -37,3 +27,4 @@
 * Support builds to be completely out-of-source
    - Broken by the mapping from `.gperf` to `.tab`
    - Broken by the imported `openpa` which is extracted and configured
+
