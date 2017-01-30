@@ -99,7 +99,7 @@ dercursor qder2b_pack_int32 (uint8_t *target_4b, int32_t value) {
 
 /* Process a dercursor, meaning a <derptr,derlen> combination as an LDAPMessage
  */
-int lillyget_dercursor (LDAP *lil, LillyPool *qpool_opt, dercursor msg) {
+int lillyget_dercursor (LDAP *lil, LillyPool qpool_opt, dercursor msg) {
 	//
 	// Unpack the DER cursor as an LDAPMessage, but stay shallow
 	dercursor mid_op_ctl [3];

@@ -44,6 +44,8 @@
  *
  * Typedef aliases for struct LillyConnection are LDAP and LillyDAP.
  */
+typedef struct LillyConnection LDAP;
+typedef struct LillyConnection LillyDAP;
 struct LillyConnection {
 	//
 	// Node data for this LillyDAP endpoint
@@ -82,12 +84,34 @@ struct LillyConnection {
 	// API Layer: The callback variant of the standard API for C
 	// TODO //
 	//
-	int (*lillyget_dercursor) ();	//TODO//TYPING//MOVE_TO_STATIC
-	int (*lillyget_ldapmessage) ();	//TODO//TYPING//MOVE_TO_STATIC
-	int (*lillyget_operation) ();	//TODO//TYPING//MOVE_TO_STATIC
-	int (*lillyput_operation) ();	//TODO//TYPING//MOVE_TO_STATIC
-	int (*lillyput_ldapmessage) ();	//TODO//TYPING//MOVE_TO_STATIC
-	int (*lillyput_dercursor) ();	//TODO//TYPING//MOVE_TO_STATIC
+	int (*lillyget_dercursor) (LDAP *lil,
+				LillyPool qpool_opt,
+				dercursor msg);
+	int (*lillyput_dercursor) (LDAP *lil,
+				LillyPool qpool,
+				dercursor dermsg);
+	int (*lillyget_ldapmessage) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const dercursor op,
+				const dercursor controls);
+	int (*lillyput_ldapmessage) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const dercursor operation,
+				const dercursor controls);
+	int (*lillyget_operation) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls);
+	int (*lillyput_operation) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls);
 	// Functions to implement the standard API
 	// (RFC-compatible wrappers are defined below)
 	struct LillyFun *fun;
@@ -100,15 +124,13 @@ struct LillyConnection {
 	char *ld_matched;
 	char *ld_error;
 };
-typedef struct LillyConnection LDAP;
-typedef struct LillyConnection LillyDAP;
 
 
 /* Functions lillyget_xxx() represent the flow of operations from the network
  * to the program.
  */
 ssize_t lillyget_event (LDAP *lil);
-int lillyget_dercursor (LDAP *lil, LillyPool *qpool_opt, dercursor msg);
+int lillyget_dercursor (LDAP *lil, LillyPool qpool_opt, dercursor msg);
 int lillyget_ldapmessage (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -117,7 +139,7 @@ int lillyget_ldapmessage (LDAP *lil,
 int lillyget_operation (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
-				const int opcode,
+				const uint8_t opcode,
 				const dercursor *data,
 				const dercursor controls);
 

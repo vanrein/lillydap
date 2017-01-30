@@ -9,13 +9,15 @@
  */
 
 
+#include <stdint.h>
+
 #include <lillydap/api.h>
 
 
 int lillyget_operation (LDAP *lil,
 			LillyPool qpool,
 			const LillyMsgId msgid,
-			const int opcode,
+			const uint8_t opcode,
 			const dercursor *data,
 			const dercursor controls) {
 #if 0
