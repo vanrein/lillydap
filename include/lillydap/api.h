@@ -127,7 +127,10 @@ struct LillyConnection {
 
 
 /* Functions lillyget_xxx() represent the flow of operations from the network
- * to the program.
+ * to the program.  These definitions match the fields in (LDAP *) by the same
+ * name, so you can choose these as default implementations to pass work on
+ * from low levels of abtractions to higher --if you choose not to intervene
+ * at the given level-- or you might do something and then call these.
  */
 ssize_t lillyget_event (LDAP *lil);
 int lillyget_dercursor (LDAP *lil, LillyPool qpool_opt, dercursor msg);
@@ -145,7 +148,10 @@ int lillyget_operation (LDAP *lil,
 
 
 /* Functions lillyput_xxx() represent the flow of operations from the program
- * to the network.
+ * to the network.  These definitions match the fields in (LDAP *) by the same
+ * name, so you can choose these as default implementations to pass work on
+ * from high levels of abtractions to lower --if you choose not to intervene
+ * at the given level-- or you might do something and then call these.
  */
 int lillyput_operation (LDAP *lil,
 				LillyPool qpool,

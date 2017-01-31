@@ -107,7 +107,7 @@ static void *_tmp;
 # define get_ptr(ptrptr)         (*ptrptr)
 # define nil_ptr(ptrptr)         (NULL == get_ptr (ptrptr))
 
-#endif /* CONFIG_SIGNLE_THREADED */
+#endif /* CONFIG_SINGLE_THREADED */
 
 
 /* Initialise the signaling routine that hints that lillyput_event() may work.
