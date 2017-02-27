@@ -28,7 +28,7 @@
  */
 
 
-#include "../import/openpa-1.0.4/src/opa_primitives.h"
+#include "opa_primitives.h"
 
 
 /* The LillyConnection structure, also known as LDAP *, from <lillydap/api.h>

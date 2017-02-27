@@ -38,6 +38,67 @@
 #include <quick-der/api.h>
 
 
+int lillypass_BindRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_BindRequest *br,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 0, (const dercursor *) br, controls);
+}
+
+int lillypass_BindResponse (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_BindResponse *br,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 1, (const dercursor *) br, controls);
+}
+
+
+int lillypass_UnbindRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_UnbindRequest *ur,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 2, (const dercursor *) ur, controls);
+}
+
+int lillypass_SearchRequest (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchRequest *sr,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 3, (const dercursor *) sr, controls);
+}
+
+
+int lillypass_SearchResultEntry (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultEntry *sre,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 4, (const dercursor *) sre, controls);
+}
+
+
+int lillypass_SearchResultReference (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultReference *srr,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 19, (const dercursor *) srr, controls);
+}
+
+
+int lillypass_SearchResultDone (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const LillyPack_SearchResultDone *srd,
+				const dercursor controls) {
+	return lillyput_operation (lil, qpool, msgid, 5, (const dercursor *) srd, controls);
+}
+
+
 void process (LDAP *lil, char *progname, char *derfilename) {
 	//
 	// Open the file
