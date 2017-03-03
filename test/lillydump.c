@@ -27,6 +27,57 @@
 #include <quick-der/api.h>
 
 
+/* A print routine for the filter, mathematically optimising by pushing the
+ * NOT into the structure, and letting AND and OR ripple to the outside,
+ * so there is some minimal filter expression structure to be relied upon.
+ */
+int print_filter (dercursor filter, int inverted) {
+	int err = 0;
+	uint8_t tag;
+	uint8_t hlen;
+	size_t len;
+	do {
+		err = err || der_header (&filter, &tag, &len, &hlen);
+		if ((err == 0) && (tag == DER_TAG_CONTEXT (2))) {	/*NOT*/
+			inverted = !inverted;
+			filter.derptr += hlen;
+			filter.derlen -= hlen;
+			continue;
+		}
+	} while (0);
+	switch (tag) {
+	case DER_TAG_CONTEXT(0):	/*AND*/
+	case DER_TAG_CONTEXT(1):	/*OR*/
+		if (inverted) {
+			tag ^= DER_TAG_CONTEXT(0) ^ DER_TAG_CONTEXT(1);
+		}
+		//SHORTCUT// if (len == 0) {
+		//SHORTCUT// 	if (tag == DER_TAG_CONTEXT(0)) {
+		//SHORTCUT// 		printf ("FALSE");	/* Bad syntax */
+		//SHORTCUT// 		return 0;
+		//SHORTCUT// 	} else {
+		//SHORTCUT// 		printf ("TRUE");	/* Bad syntax */
+		//SHORTCUT// 		return 0;
+		//SHORTCUT// 	}
+		//SHORTCUT// } else {
+			err = err || der_enter (&filter);
+			printf ("(%c", (tag == DER_TAG_CONTEXT(0))? '&': '|');
+			while ((err == 0) && (filter.derlen > 0)) {
+				dercursor subexp = filter;
+				err = err || der_focus (&subexp);
+				err = err || print_filter (subexp, inverted);
+				err = err || der_skip (&filter);
+			}
+			printf (")");
+		//SHORTCUT// }
+		break;
+	default:
+		printf ("(%s0x%02x,%p,%d%s)", inverted? "NOT(": "", tag, filter.derptr, (int) filter.derlen, inverted? ")": "");
+	}
+	return err? -1: 0;
+}
+
+
 int lillyget_BindRequest (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -116,6 +167,10 @@ int lillyget_SearchRequest (LDAP *lil,
 			printf (" ? derefAliases weird value %d instead of 0, 1, 2 or 3\n", *sr->derefAliases.derptr);
 		}
 	}
+	// filter
+	printf (" - filter = ");
+	print_filter (sr->filter, 0);
+	printf ("\n");
 	// attributes SEQUENCE OF LDAPString
 	dercursor attrs = sr->attributes;
 	printf (" - attributes.derlen = %zd\n", attrs.derlen);
