@@ -15,17 +15,27 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include <errno.h>
 #include <fcntl.h>
 
+#ifndef USE_SILLYMEM
 #define USE_SILLYMEM
+#endif
 
 #include <lillydap/api.h>
 #include <lillydap/mem.h>
 
 #include <quick-der/api.h>
 
+/* Quick-DER structures contain dercursors, and every member of
+ * a structure starts with a dercursor structure. Use this
+ * cast-hammer to smash a member reference (e.g. rq->filter) to
+ * a dercursor (or pointer thereto).
+ */
+#define DERCURSOR_P_CAST(x) ((dercursor *)(&(x)))
+#define DERCURSOR_CAST(x) (*DERCURSOR_P_CAST(x))
 
 /* A print routine for the filter, mathematically optimising by pushing the
  * NOT into the structure, and letting AND and OR ripple to the outside,
@@ -84,15 +94,15 @@ int lillyget_BindRequest (LDAP *lil,
 				const LillyPack_BindRequest *br,
 				const dercursor controls) {
 	printf ("Got BindRequest\n");
-	printf (" - version in %d bytes %02x,...\n", br->version.derlen, br->version.derptr [0]);
-	printf (" - name \"%.*s\"\n", br->name.derlen, br->name.derptr);
+	printf (" - version in %zu bytes %02x,...\n", br->version.derlen, br->version.derptr [0]);
+	printf (" - name \"%.*s\"\n", (int)br->name.derlen, br->name.derptr);
 	if (br->authentication.simple.derptr != NULL) {
-		printf (" - simple authentication with \"%.*s\"\n", br->authentication.simple.derlen, br->authentication.simple.derptr);
+		printf (" - simple authentication with \"%.*s\"\n", (int)br->authentication.simple.derlen, br->authentication.simple.derptr);
 	}
 	if (br->authentication.sasl.mechanism.derptr != NULL) {
-		printf (" - SASL mechanism \"%.*s\"\n", br->authentication.sasl.mechanism.derlen, br->authentication.sasl.mechanism.derptr);
+		printf (" - SASL mechanism \"%.*s\"\n", (int)br->authentication.sasl.mechanism.derlen, br->authentication.sasl.mechanism.derptr);
 		if (br->authentication.sasl.credentials.derptr != NULL) {
-			printf (" - SASL credentias \"%.*s\"\n", br->authentication.sasl.credentials.derlen, br->authentication.sasl.credentials.derptr);
+			printf (" - SASL credentias \"%.*s\"\n", (int)br->authentication.sasl.credentials.derlen, br->authentication.sasl.credentials.derptr);
 		}
 	}
 	lillymem_endpool (qpool);
@@ -105,9 +115,9 @@ int lillyget_BindResponse (LDAP *lil,
 				const LillyPack_BindResponse *br,
 				const dercursor controls) {
 	printf ("Got BindResponse\n");
-	printf (" - resultCode in %d bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
-	printf (" - matchedDN \"%.*s\"\n", br->matchedDN.derlen, br->matchedDN.derptr);
-	printf (" - diagnosticMessage \"%.*s\"\n", br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
+	printf (" - resultCode in %zu bytes %02x,%02x,%02x,%02x,...\n", br->resultCode.derlen, br->resultCode.derptr [0], br->resultCode.derptr [1], br->resultCode.derptr [2], br->resultCode.derptr [3]);
+	printf (" - matchedDN \"%.*s\"\n", (int)br->matchedDN.derlen, br->matchedDN.derptr);
+	printf (" - diagnosticMessage \"%.*s\"\n", (int)br->diagnosticMessage.derlen, br->diagnosticMessage.derptr);
 	lillymem_endpool (qpool);
 	return 0;
 }
@@ -129,7 +139,7 @@ int lillyget_SearchRequest (LDAP *lil,
 				const LillyPack_SearchRequest *sr,
 				const dercursor controls) {
 	printf ("Got SearchRequest\n");
-	printf (" - baseObject \"%.*s\"\n", sr->baseObject.derlen, sr->baseObject.derptr);
+	printf (" - baseObject \"%.*s\"\n", (int)sr->baseObject.derlen, sr->baseObject.derptr);
 	if (sr->scope.derlen != 1) {
 		printf (" ? scope has awkward size %zd instead of 1\n", sr->scope.derlen);
 	} else {
@@ -169,7 +179,7 @@ int lillyget_SearchRequest (LDAP *lil,
 	}
 	// filter
 	printf (" - filter = ");
-	print_filter (sr->filter, 0);
+	print_filter (DERCURSOR_CAST(sr->filter), 0);
 	printf ("\n");
 	// attributes SEQUENCE OF LDAPString
 	dercursor attrs = sr->attributes;
@@ -181,7 +191,7 @@ int lillyget_SearchRequest (LDAP *lil,
 			fprintf (stderr, "ERROR while focussing on attribute of SearchRequest: %s\n", strerror (errno));
 		} else {
 			printf (" - attr.derlen = %zd\n", attr.derlen);
-			printf (" - attributes \"%.*s\"\n", attr.derlen, attr.derptr);
+			printf (" - attributes \"%.*s\"\n", (int)attr.derlen, attr.derptr);
 		}
 		der_skip (&attrs);
 	}
@@ -195,7 +205,7 @@ int lillyget_SearchResultEntry (LDAP *lil,
 				const LillyPack_SearchResultEntry *sre,
 				const dercursor controls) {
 	printf ("Got SearchResultEntry\n");
-	printf (" - objectName \"%.*s\"\n", sre->objectName.derlen, sre->objectName.derptr);
+	printf (" - objectName \"%.*s\"\n", (int)sre->objectName.derlen, sre->objectName.derptr);
 	// partialAttribute SEQUENCE OF PartialAttribute
 	dercursor pa = sre->attributes;
 	der_enter (&pa);
@@ -204,14 +214,14 @@ int lillyget_SearchResultEntry (LDAP *lil,
 		// SEQUENCE { type AttributeDescription,
 		//		vals SET OF AttributeValue }
 		der_enter (&type);
-		printf (" - partialAttribute.type \"%.*s\"\n", type.derlen, type.derptr);
+		printf (" - partialAttribute.type \"%.*s\"\n", (int)type.derlen, type.derptr);
 		der_skip (&pa);
 		dercursor vals = pa;
 		der_enter (&vals);
 		while (vals.derlen > 0) {
 			dercursor val = vals;
 			der_enter (&val);
-			printf ("    - value \"%.*s\"\n", val.derlen, val.derptr);
+			printf ("    - value \"%.*s\"\n", (int)val.derlen, val.derptr);
 			der_skip (&vals);
 		}
 		der_skip (&pa);
@@ -230,7 +240,7 @@ int lillyget_SearchResultReference (LDAP *lil,
 	do {
 		dercursor uri = uris;
 		der_enter (&uri);
-		printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
+		printf (" - URI \"%.*s\"\n", (int)uri.derlen, uri.derptr);
 		der_skip (&uris);
 	} while (uris.derlen > 0);
 	lillymem_endpool (qpool);
@@ -244,14 +254,14 @@ int lillyget_SearchResultDone (LDAP *lil,
 				const dercursor controls) {
 	printf ("Got SearchResultDone\n");
 	printf (" - resultCode is %zd==1 byte valued %d\n", srd->resultCode.derlen, *srd->resultCode.derptr);
-	printf (" - matchedDN \"%.*s\"\n", srd->matchedDN.derlen, srd->matchedDN.derptr);
-	printf (" - diagnosticMessage \"%.*s\"\n", srd->diagnosticMessage.derlen, srd->diagnosticMessage.derptr);
+	printf (" - matchedDN \"%.*s\"\n", (int)srd->matchedDN.derlen, srd->matchedDN.derptr);
+	printf (" - diagnosticMessage \"%.*s\"\n", (int)srd->diagnosticMessage.derlen, srd->diagnosticMessage.derptr);
 	if (srd->referral.derptr != NULL) {
 		dercursor uris = srd->referral;
 		do {
 			dercursor uri = uris;
 			der_enter (&uri);
-			printf (" - URI \"%.*s\"\n", uri.derlen, uri.derptr);
+			printf (" - URI \"%.*s\"\n", (int)uri.derlen, uri.derptr);
 			der_skip (&uris);
 		} while (uris.derlen > 0);
 	}

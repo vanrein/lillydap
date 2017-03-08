@@ -4,8 +4,10 @@
  */
 
 
-#include <stdint.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
+#include <unistd.h>
 
 #include <quick-der/api.h>
 #include <lillydap/api.h>

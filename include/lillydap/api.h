@@ -512,7 +512,7 @@ typedef union LillyOpRegistry {
 	} by_name;
 } LillyOpRegistry;
 
-#define putop(opcd,opnm) static inline lillyput_##opnm (LDAP *lil, \
+#define putop(opcd,opnm) static inline int lillyput_##opnm (LDAP *lil, \
 			LillyPool qpool, const LillyMsgId mid, \
 			const LillyPack_##opnm *arg, const dercursor ctl) { \
 				return lillyput_operation (lil, qpool, mid, \
