@@ -12,7 +12,7 @@ set_target_properties (
 target_link_libraries (
 	lillydump.test
 	lillydapStatic
-	${Quick-DER_LIBRARIES}
+	${Quick-DER_STATIC_LIBRARIES}
 )
 
 if (NOT ${BUILD_SINGLE_THREADED})
@@ -33,7 +33,7 @@ if (NOT ${BUILD_SINGLE_THREADED})
 	target_link_libraries (
 		stampede.test
 		lillydapStatic
-		${Quick-DER_LIBRARIES}
+		${Quick-DER_STATIC_LIBRARIES}
 		${CMAKE_THREAD_LIBS_INIT}	-lpthread
 	)
 endif()
@@ -50,7 +50,7 @@ set_target_properties (
 target_link_libraries (
 	lillypass.test
 	lillydapStatic
-	${Quick-DER_LIBRARIES}
+	${Quick-DER_STATIC_LIBRARIES}
 	#ORIG# ${Quick-DER_LIBRARIES}
 )
 
