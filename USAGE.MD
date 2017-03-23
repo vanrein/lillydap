@@ -199,3 +199,20 @@ descriptors to be used are part of the `LillyDAP` structure that is passed along
 with the event callbacks.
 
 
+## Usage with Threads
+
+The LillyDAP routines are thread-safe, as long as you process each
+`LillyDAP` structure in one thread at a time.
+
+Given that we can split and join data, sometimes threads do come together.
+This is the case in the queue of data standing by to be written out.
+The queue mechanism has been setup with lock-free mechanisms, so you should
+be able to use any number of threads you like and you should not see them
+slow down noticably on locks because there are no locks.
+
+There is a test for multi-threading, namely
+[stampede](test/stampede.c)
+that initiates a large number of threads and makes them line up for
+massive writes.  If any program would bring down the concurrency model,
+then this is it.
+
