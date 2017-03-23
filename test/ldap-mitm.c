@@ -219,9 +219,8 @@ int pump(int srcfd, int destfd, int serial)
 	static char buf[20480];
 	int r;
 
-	int serialfd;
 	snprintf(serialfile, sizeof(serialfile), "msg.%06d.%d.bin", serial, srcfd);
-	serialfd = open(serialfile, O_CREAT | O_WRONLY, 0644);
+	int serialfd = open(serialfile, O_CREAT | O_WRONLY, 0644);
 	if (serialfd < 0)
 	{
 		fprintf(stderr, "Could not open data file '%s'.\n", serialfile);
