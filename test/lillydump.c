@@ -20,10 +20,6 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifndef USE_SILLYMEM
-#define USE_SILLYMEM
-#endif
-
 #include <lillydap/api.h>
 #include <lillydap/mem.h>
 
