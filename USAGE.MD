@@ -50,12 +50,12 @@ LDAP can be composed in a highly efficient manner.
 
 This ability to take messages apart up to the level that is meaningful for a
 piece of middleware, and either recompose or further decompose it, provides
-a lot of flexibility and avoids to much zeal in processing LDAP.  It may well
+a lot of flexibility and avoids too much zeal in processing LDAP.  It may well
 be the most efficient approach to processing LDAP while in transit.
 
 In addition to that, the techniques with which LillyDAP was programmed are
 very efficient.  First, its use of
-[Quick DER](https://github.com/vanrein/quick-der]
+[Quick DER](https://github.com/vanrein/quick-der)
 means that it is very conservative in its use of memory allocation and
 copying; second, its region-based memory allocator can be used to keep the
 memory management highly localised, for instance with a memory region for
@@ -97,13 +97,80 @@ the `lillymem_xxx()` routines to the rather ineffecient, but at least
 functional, `sillymem_xxx()` routines &mdash; but you should plan to replace
 those sometime soon.  The routines are really quite silly.
 
-You also need to link the operations.  The stack shown above already gives
+```
+lillymem_newpool_fun = sillymem_newpool;
+lillymem_endpool_fun = sillymem_endpool;
+lillymem_alloc_fun   = sillymem_alloc;
+```
+
+When you want to allocate memory, you should start by allocating a region
+to allocate from,
+```
+LillyPool *lipo = lillymem_newpool ();
+if (lipo == NULL) {
+    fprintf (stderr, "%s: Failed to allocate a memory pool\n", progname);
+    exit (1);
+}
+```
+You do not have to `free()` the individual allocations in these regions,
+but instead clear the entire region at once:
+```
+lillymem_endpool (lipo);
+```
+The idea is that you use this to simplify your programs; it is especially
+effective for short-lived storage requirements, such as per-query storage,
+possibly topped off with some per-connection storage.  Cleaning up a
+region can be done when a query is handled, or when a connection is closed.
+The cleanup of a query can in fact be delegated to the writing routines;
+the `lillyget_xxx()` routines pass a region pool down, and `lillyput_xxx()`
+pass it up, the idea being that the former creates the pools and the latter
+destroys them.  You may intervene with this, and decide to pass on a fresh
+region pool if you would like to retain data for longer than the called
+routines use it.
+
+You also need to link the operations, as they are set to `NULL` or
+undefined by default.  The stack shown above already gives
 alternative arrows leaving each block, and you may set the defaults or leave
 them `NULL` to indicate that they are not implemented.  You may of course
 route operations to your own routines, which would then process them like
 callbacks.
 
-The management of an LDAP connection is done through an `LDAP` structure,
+```
+LillyDAP *lil;
+lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
+
+lil->lillyget_dercursor   =
+lil->lillyput_dercursor   = lillyput_dercursor;
+lil->lillyget_ldapmessage =
+lil->lillyput_ldapmessage = lillyput_ldapmessage;
+lil->lillyget_operation   =
+lil->lillyput_operation   = lillyput_operation;
+```
+(Future versions of LillyDAP will probably have a static structure with this
+setup, so it can be setup in data structures.)
+
+If you want to parse operations into individual operations and data
+structures, you will need to setup the according switch with the callback
+functions that handle them:
+```
+static const LillyOpRegistry opregistry = {
+    .by_name = {
+        .BindRequest = lillyput_BindRequest,
+        .BindResponse = lillyput_BindResponse,
+        .UnbindRequest = lillyput_UnbindRequest,
+        .SearchRequest = lillyput_SearchRequest,
+        .SearchResultEntry = lillyput_SearchResultEntry,
+        .SearchResultReference = lillyput_SearchResultReference,
+        .SearchResultDone = lillyput_SearchResultDone,
+    }
+};
+```
+which you will of course hang into the connection's `LillyDAP` structure with
+```
+lil->opregistry = &opregistry;
+```
+
+The management of an LDAP connection is done through an `LillyDAP` structure,
 and this holds [TODO:REFERENCES TO] the static function calling scheme that
 forms the actual protocol stack used.  The named operations do actually
 exist, and can be setup if they are what you want; or you may call them from
@@ -128,7 +195,7 @@ a `lillyput_xxx()` routine.
 Near the network socket, the model is geared towards an event loop.  So, the
 `lillyget_event()` and `lillyput_event()` routines are defined to trigger
 treatment of an event for reading and writing, respectively.  The file
-descriptors to be used are part of the `LDAP` structure that is passed along
+descriptors to be used are part of the `LillyDAP` structure that is passed along
 with the event callbacks.
 
 
