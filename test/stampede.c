@@ -35,8 +35,6 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define USE_SILLYMEM
-
 #include <lillydap/api.h>
 #include <lillydap/mem.h>
 #include <lillydap/queue.h>
@@ -90,7 +88,7 @@ void *cattle (void *nullarg) {
 	for (i=0; i<1000; i++) {
 		// Construct sizes 3, 3, 3, 1
 		snprintf (msg [i], 20, "%06d, %04d\n", thrid, i);
-		lise [i / 3]->cursori [i % 3].derptr = msg [i];
+		lise [i / 3]->cursori [i % 3].derptr = (uint8_t *)(msg [i]);
 		lise [i / 3]->cursori [i % 3].derlen = strlen (msg [i]);
 	}
 	//
