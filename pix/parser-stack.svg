@@ -7854,21 +7854,18 @@
       <path d="M408.1757 514.9958 L401.1199 504.0773 L400.7593 509.8971 L395.4546 512.3177 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <path fill="none" d="M313.6328 434.9988 L538.8135 512.4047" clip-path="url(#clipPath2)"/>
       <path d="M546.379 515.0053 L536.6562 506.3759 L537.8679 512.0796 L533.4054 515.8328 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <path fill="none" d="M321.5234 150 L530.5136 150" clip-path="url(#clipPath2)"/>
-      <path d="M538.5136 150 L526.5136 145 L529.5136 150 L526.5136 155 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <text x="385.3721" xml:space="preserve" y="124.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_queue()</text>
       <path fill="none" d="M590 172.9854 L590 225.019" clip-path="url(#clipPath2)"/>
       <path d="M590 164.9854 L585 176.9854 L590 173.9854 L595 176.9854 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="610.3721" xml:space="preserve" y="199.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_queue()</text>
-      <path fill="none" d="M321.5234 240 L530.5136 240" clip-path="url(#clipPath2)"/>
-      <path d="M538.5136 240 L526.5136 235 L529.5136 240 L526.5136 245 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <text x="375.2559" xml:space="preserve" y="214.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_dercursor()</text>
+      <path fill="none" d="M320.0391 164.0735 L532.2413 223.7554" clip-path="url(#clipPath2)"/>
+      <path d="M539.9426 225.9213 L529.7445 217.8591 L531.2787 223.4846 L527.037 227.4857 Z" clip-path="url(#clipPath2)" stroke="none"/>
+      <text x="370.6597" xml:space="preserve" y="167.0785" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_dercursor()</text>
       <path fill="none" d="M590 262.9854 L590 315.019" clip-path="url(#clipPath2)"/>
       <path d="M590 254.9854 L585 266.9854 L590 263.9854 L595 266.9854 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="606.2559" xml:space="preserve" y="289.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_dercursor()</text>
-      <path fill="none" d="M321.5234 330 L530.5136 330" clip-path="url(#clipPath2)"/>
-      <path d="M538.5136 330 L526.5136 325 L529.5136 330 L526.5136 335 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <text x="365.2217" xml:space="preserve" y="304.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_ldapmessage()</text>
+      <path fill="none" d="M320.0391 254.0735 L532.2413 313.7554" clip-path="url(#clipPath2)"/>
+      <path d="M539.9426 315.9214 L529.7445 307.8591 L531.2787 313.4846 L527.037 317.4857 Z" clip-path="url(#clipPath2)" stroke="none"/>
+      <text x="368.2779" xml:space="preserve" y="259.2308" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_ldapmessage()</text>
       <path fill="none" d="M590 352.9854 L590 405.019" clip-path="url(#clipPath2)"/>
       <path d="M590 344.9854 L585 356.9854 L590 353.9854 L595 356.9854 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="623.2217" xml:space="preserve" y="379.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_ldapmessage()</text>
@@ -7878,9 +7875,9 @@
       <path d="M568.1758 435.0042 L555.4547 437.6823 L560.7594 440.1029 L561.1199 445.9227 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <path fill="none" d="M313.6328 515.0012 L538.8135 437.5953" clip-path="url(#clipPath2)"/>
       <path d="M546.379 434.9947 L533.4054 434.1672 L537.8679 437.9204 L536.6562 443.6241 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <path fill="none" d="M321.5234 420 L530.5136 420" clip-path="url(#clipPath2)"/>
-      <path d="M538.5136 420 L526.5136 415 L529.5136 420 L526.5136 425 Z" clip-path="url(#clipPath2)" stroke="none"/>
-      <text x="375.3203" xml:space="preserve" y="394.5352" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_operation()</text>
+      <path fill="none" d="M320.0391 344.0735 L532.2413 403.7554" clip-path="url(#clipPath2)"/>
+      <path d="M539.9426 405.9214 L529.7445 397.8591 L531.2787 403.4846 L527.037 407.4857 Z" clip-path="url(#clipPath2)" stroke="none"/>
+      <text x="368.3173" xml:space="preserve" y="346.4016" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">lillyput_operation()</text>
       <path fill="none" d="M570 82.959 L570 135.0344" clip-path="url(#clipPath2)"/>
       <path d="M570 74.959 L565 86.959 L570 83.959 L575 86.959 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <text x="522.6982" xml:space="preserve" y="112.418" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">write()</text>
