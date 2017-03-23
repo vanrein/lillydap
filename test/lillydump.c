@@ -182,7 +182,7 @@ int lillyget_SearchRequest (LDAP *lil,
 	print_filter (DERCURSOR_CAST(sr->filter), 0);
 	printf ("\n");
 	// attributes SEQUENCE OF LDAPString
-	dercursor attrs = sr->attributes;
+	dercursor attrs = sr->attributes.wire;
 	printf (" - attributes.derlen = %zd\n", attrs.derlen);
 	printf (" - attributes.enter.derlen = %zd\n", attrs.derlen);
 	while (attrs.derlen > 0) {
@@ -207,7 +207,7 @@ int lillyget_SearchResultEntry (LDAP *lil,
 	printf ("Got SearchResultEntry\n");
 	printf (" - objectName \"%.*s\"\n", (int)sre->objectName.derlen, sre->objectName.derptr);
 	// partialAttribute SEQUENCE OF PartialAttribute
-	dercursor pa = sre->attributes;
+	dercursor pa = sre->attributes.wire;
 	der_enter (&pa);
 	while (pa.derlen > 0) {
 		dercursor type = pa;
@@ -236,7 +236,7 @@ int lillyget_SearchResultReference (LDAP *lil,
 				const LillyPack_SearchResultReference *srr,
 				const dercursor controls) {
 	printf ("Got SearchResultReference\n");
-	dercursor uris = *srr;
+	dercursor uris = srr->wire;
 	do {
 		dercursor uri = uris;
 		der_enter (&uri);
@@ -256,8 +256,8 @@ int lillyget_SearchResultDone (LDAP *lil,
 	printf (" - resultCode is %zd==1 byte valued %d\n", srd->resultCode.derlen, *srd->resultCode.derptr);
 	printf (" - matchedDN \"%.*s\"\n", (int)srd->matchedDN.derlen, srd->matchedDN.derptr);
 	printf (" - diagnosticMessage \"%.*s\"\n", (int)srd->diagnosticMessage.derlen, srd->diagnosticMessage.derptr);
-	if (srd->referral.derptr != NULL) {
-		dercursor uris = srd->referral;
+	if (srd->referral.wire.derptr != NULL) {
+		dercursor uris = srd->referral.wire;
 		do {
 			dercursor uri = uris;
 			der_enter (&uri);

@@ -29,8 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-
-#define USE_SILLYMEM
+#include <unistd.h>
 
 #include <lillydap/api.h>
 #include <lillydap/mem.h>
