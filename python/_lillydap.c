@@ -325,7 +325,6 @@ static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 }
 
 
-
 static PyMethodDef lil_methods [] = {
 	{ "lillyget_event",       lget_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be read" },
 	{ "lillyget_dercursor",	  lget_dercursor,   METH_VARARGS, "Receive one complete top-level DER structure" },
@@ -338,6 +337,32 @@ static PyMethodDef lil_methods [] = {
 	{ "lillyput_event",       lput_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be sent" },
 	{ NULL, NULL, 0, NULL }
 };
+
+
+int pyget_operation (LillyDAP *lil, LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls) {
+	//
+	// Find the object to invoke the method on
+	//TODO//
+	PyObject *self = NULL;
+	//
+	// Invoke the method in Python
+	PyObject *result = PyObject_CallMethod (self,
+			"lillyget_operation", "(iis#s#)",
+			(int) msgid, (int) opcode,
+			data->derptr, data->derlen,
+			controls.derptr, controls.derlen);
+	if (result == NULL) {
+		return -1;
+	}
+	//
+	// Cleanup and report -- simply assume that None was returned
+	Py_DECREF (result);
+	return 0;
+}
 
 
 PyMODINIT_FUNC init_lillydap (void) {
@@ -360,6 +385,6 @@ PyMODINIT_FUNC init_lillydap (void) {
 	_1self.lillyput_dercursor   = lillyput_dercursor;
 	//
 	// Setup bottom of parser stack to continue into Python
-	//TODO// _1self.lillyget_operation = pyget_operation;
+	_1self.lillyget_operation   = pyget_operation;
 }
 
