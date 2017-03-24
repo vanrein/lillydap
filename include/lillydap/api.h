@@ -167,7 +167,7 @@ int lillyput_ldapmessage (LDAP *lil,
 int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg);
 void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend);
 bool lillyput_cansend (LillyDAP *lil);
-int lillyput_event (LDAP *lil);
+ssize_t lillyput_event (LDAP *lil);
 
 
 /* A parallel to ldap_open, filling the basic structure and returning

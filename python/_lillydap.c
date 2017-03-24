@@ -31,6 +31,8 @@
  */
 
 
+#include <errno.h>
+
 #include <Python.h>
 
 #include <lillydap/api.h>
@@ -38,13 +40,37 @@
 #include <quick-der/api.h>
 
 
+
+//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO
+// I have no idea (yet) how to attach a binary C structure to a PyObject
+// so for now this is a VERY DIRTY HACK -- use a singleton instance only
+// SEE PyCapsule as a type, https://docs.python.org/2/c-api/capsule.html
+//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO
+
+LillyDAP _1self;
+
+
 static PyObject *lget_event (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
-	//TODO//
+	//
+	// Inform the underlying code about the read event
+	ssize_t bytes_read = lillyget_event (&_1self);
+	if (bytes_read == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Construct the return value
+	PyObject *retval = PyInt_FromSsize_t ((Py_ssize_t) bytes_read);
+	if (retval == NULL) {
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	return retval;
 }
 
 static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
@@ -55,10 +81,27 @@ static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "s#", &msgptr, &msglen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Have a memory pool
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Invoke the library routine
+	dercursor dermsg;
+	dermsg.derptr = msgptr;
+	dermsg.derlen = msglen;
+	if (lillyget_dercursor (&_1self, qpool, dermsg) == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
@@ -72,10 +115,29 @@ static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "is#s#", &msgid, &opptr, &oplen, &ctlptr, &ctllen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Have a memory pool
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Send the LDAPMessage up towards the queue; use stack-copied objects
+	dercursor op, ctl;
+	op.derptr = opptr;
+	op.derlen = oplen;
+	ctl.derptr = ctlptr;
+	ctl.derlen = ctllen;
+	if (lillyget_ldapmessage (&_1self, qpool, msgid, op, ctl) == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lput_operation (PyObject *self, PyObject *args) {
@@ -90,10 +152,44 @@ static PyObject *lput_operation (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "iis#s#", &msgid, &opcode, &dataptr, &datalen, &ctlptr, &ctllen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Check correctness of the opcode
+	if ((opcode < 0) || (opcode > 255)) {
+		errno = EINVAL;
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Have a memory pool and allocate a dercursor
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	dercursor *data = lillymem_alloc (qpool, sizeof (dercursor));
+	if (data == NULL) {
+		errno = ENOMEM;
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Send the operation code up towards the queue
+	dercursor ctl;
+	data->derptr = dataptr;
+	data->derlen = datalen;
+	ctl.derptr = ctlptr;
+	ctl.derlen = ctllen;
+	if (lillyput_operation (&_1self, qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
@@ -107,10 +203,29 @@ static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "is#s#", &msgid, &opptr, &oplen, &ctlptr, &ctllen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Have a memory pool
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Send the LDAPMessage up towards the queue; use stack-copied objects
+	dercursor op, ctl;
+	op.derptr = opptr;
+	op.derlen = oplen;
+	ctl.derptr = ctlptr;
+	ctl.derlen = ctllen;
+	if (lillyput_ldapmessage (&_1self, qpool, msgid, op, ctl) == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
@@ -121,10 +236,27 @@ static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "s#", &msgptr, &msglen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Have a memory pool
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Invoke the library routine
+	dercursor dermsg;
+	dermsg.derptr = msgptr;
+	dermsg.derlen = msglen;
+	if (lillyput_dercursor (&_1self, qpool, dermsg) == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
@@ -135,28 +267,61 @@ static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
 	if (!PyArg_ParseTuple (args, "s#", &addendptr, &addendlen)) {
 		return NULL;
 	}
-	//TODO//
+	//
+	// Have a memory pool
+	LillyPool qpool = NULL;
+	if (!lillymem_havepool (&qpool)) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Submit to the queue, and let the memory self-destroy
+	dercursor dermsg;
+	dermsg.derptr = addendptr;
+	dermsg.derlen = addendlen;
+	if (lillyput_dercursor (&_1self, qpool, dermsg) == -1) {
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static PyObject *lput_cansend (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
-	//TODO//
+	bool can_send = lillyput_cansend (&_1self);
 	//
 	// Cleanup and return
-	return NULL;
+	if (can_send) {
+		Py_RETURN_TRUE;
+	} else {
+		Py_RETURN_FALSE;
+	}
 }
 
 static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
-	//TODO//
+	// Inform the underlying code about the read event
+	ssize_t bytes_read = lillyput_event (&_1self);
+	if (bytes_read == -1) {
+		PyErr_SetFromErrno (PyExc_OSError);
+		//TODO// refctr
+		return NULL;
+	}
+	//
+	// Construct the return value
+	PyObject *retval = PyInt_FromSsize_t ((Py_ssize_t) bytes_read);
+	if (retval == NULL) {
+		//TODO// refctr
+		return NULL;
+	}
 	//
 	// Cleanup and return
-	return NULL;
+	return retval;
 }
 
 
@@ -175,11 +340,26 @@ static PyMethodDef lil_methods [] = {
 };
 
 
-PyMODINIT_FUNC init_lillydap () {
+PyMODINIT_FUNC init_lillydap (void) {
 	PyObject *mod;
 	mod = Py_InitModule ("_lillydap", lil_methods);
 	if (mod == NULL) {
 		return;
 	}
+	//
+	// Initialise _1self
+	memset (&_1self, 0, sizeof (&_1self));
+	_1self.get_fd = 0;
+	_1self.put_fd = 1;
+	//
+	// Setup _1self calls to standard routines of LillyDAP
+	//TODO// Need to bypass these, and check for method overrides
+	_1self.lillyget_dercursor   = lillyget_dercursor;
+	_1self.lillyget_ldapmessage = lillyget_ldapmessage;
+	_1self.lillyput_ldapmessage = lillyput_ldapmessage;
+	_1self.lillyput_dercursor   = lillyput_dercursor;
+	//
+	// Setup bottom of parser stack to continue into Python
+	//TODO// _1self.lillyget_operation = pyget_operation;
 }
 

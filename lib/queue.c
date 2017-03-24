@@ -150,9 +150,10 @@ bool lillyput_cansend (LillyDAP *lil) {
 /* The callback function for lillyput_event() takes elements off the queue,
  * which is why it is implemented as part of queue.c.  Its API returns -1
  * on error with errno set; where errno is EAGAIN to indicate that it has
- * nothing to send left.
+ * nothing to send left.  Other than the error situations, the return value
+ * indicates the number of bytes sent.
  */
-int lillyput_event (LDAP *lil) {
+ssize_t lillyput_event (LDAP *lil) {
 	//
 	// First test if the head actually points to an element
 	struct LillySend *todo;

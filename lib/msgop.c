@@ -157,7 +157,7 @@ int lillyput_operation (LDAP *lil,
 				const dercursor *data,
 				const dercursor controls) {
 #if 0
-	if (opcode > OPCODE_EXT_UNKNOWN) {
+	if (opcode >= OPCODE_EXT_UNDEF) {
 		return -1;
 	}
 	if (data == NULL) {
