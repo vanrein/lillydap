@@ -181,7 +181,7 @@ Please see the
 for up-to-date examples.
 
 
-## Usage with Event Loops
+## Use with Event Loops
 
 The LDAP protocol consists of asynchronous messages, meaning that request and
 response are independent messages; in fact, some requests are answered with
@@ -199,19 +199,31 @@ descriptors to be used are part of the `LillyDAP` structure that is passed along
 with the event callbacks.
 
 
-## Usage with Threads
+## Use with Threads
 
-The LillyDAP routines are thread-safe, as long as you process each
-`LillyDAP` structure in one thread at a time.
+The LillyDAP routines are thread-safe, as long as each
+`LillyDAP` structure's events are processed in one thread.  Meaning,
+only one thread should call `lillyget_event()` and one (possibly
+other) thread should call `lillyput_event()`.  More precisely,
+the functions are not re-entrant and they want to see a continuous
+byte sequence on their input or output connection.
 
-Given that we can split and join data, sometimes threads do come together.
+Note that it is possible to initiate (worker) threads for the other
+calls.  So, a call to `lillyget_dercursor()` or any of the other
+functions can be bypassed and a worker thread selected to get the
+work assigned.  This is possible because the event handler in
+`lillyget_event()` allocates its own memory region pool and is
+therefore completely detached from the rest of processing.
+
+The same is true for the `lillyput_xxx()` routines.  However, given
+that we can split and join data, sometimes threads do come together.
 This is the case in the queue of data standing by to be written out.
 The queue mechanism has been setup with lock-free mechanisms, so you should
 be able to use any number of threads you like and you should not see them
 slow down noticably on locks because there are no locks.
 
-There is a test for multi-threading, namely
-[stampede](test/stampede.c)
+LillyDAP contains a stress test for multi-threading, namely
+[stampede](test/stampede.c),
 that initiates a large number of threads and makes them line up for
 massive writes.  If any program would bring down the concurrency model,
 then this is it.
