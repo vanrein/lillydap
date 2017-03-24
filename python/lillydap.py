@@ -9,14 +9,88 @@ import string as _lillydap #TODO# import _lillydap
 from quick_der.api import *
 
 from quick_der.rfc4511 import *
+from quick_der.rfc3062 import *
 from quick_der.rfc3909 import *
 from quick_der.rfc4373 import *
+from quick_der.rfc4531 import *
 from quick_der.rfc5805 import *
+
+
+# A number of classes have names from RFCs that do not match how want to
+# call the operations.  We resolve this with class inheritance, which
+# effectively renames them.  It also helps to formulate a type (and thereby
+# an operation name) for operations that expect no parameters.
+#
+# TODO:ALTERNATIVELY we might define ASN.1 types for these ourselves.
+
+class StartTLSRequest (ExtendedRequest):
+	pass
+
+class StartTLSResponse (ExtendedResponse):
+	pass
+
+class PasswdModifyRequest (PasswdModifyRequestValue):
+	pass
+
+class PasswdModifyResponse (PasswdModifyResponseValue):
+	pass
+
+class CancelRequest (CancelRequestValue):
+	pass
+
+class CancelResponse (ExtendedResponse):
+	pass
+
+class WhoamiRequest (ExtendedRequest):
+	pass
+
+class WhoamiResponse (ExtendedResponse):
+	pass
+
+class StartLBURPRequest (StartLBURPRequestValue):
+	pass
+
+class StartLBURPResponse (StartLBURPResponseValue):
+	pass
+
+class EndLBURPRequest (ExtendedRequest):
+	pass
+
+class EndLBURPResponse (ExtendedResponse):
+	pass
+
+class LBURPUpdateRequest (LBURPUpdateRequestValue):
+	pass
+
+class LBURPUpdateResponse (ExtendedResponse):
+	pass
+
+class TurnRequest (TurnValue):
+	pass
+
+class TurnResponse (ExtendedResponse):
+	pass
+
+class StartTxnRequest (ExtendedRequest):
+	pass
+
+class StartTxnResponse (ExtendedResponse):
+	pass
+
+class EndTxnRequest (TxnEndReq):
+	pass
+
+class EndTxnResponse (TxnEndRes):
+	pass
+
+class AbortedTxnResponse (ExtendedResponse):
+	pass
 
 
 # The following lookup table maps opcodes as used by LillyDAP to the
 # class for the data object for that opcode.  This table is used both
-# to parse operand data and to validate its typing.
+# to parse operand data and to validate its typing.  It follows the
+# same order (and index numbering) as enum opcode_ext in lib/msgop.tab
 opcode2dataclass = [
 	BindRequest,
 	BindResponse,
@@ -50,27 +124,27 @@ opcode2dataclass = [
 	None,	#29
 	None,	#30
 	None,	#31
-	None, #TODO# StartTlsRequest,
-	None, #TODO# StartTlsResponse,
-	None, #TODO# PasswdModifyRequest,
-	None, #TODO# PasswdModifyResponse,
-	None, #TODO# WhoamiRequest,
-	None, #TODO# WhoamiResponse,
-	None, #TODO# CancelRequest,
-	None, #TODO# CancelResponse,
-	None, #TODO# StartLBURPRequest,
-	None, #TODO# StartLBURPResponse,
-	None, #TODO# EndLBURPRequest,
-	None, #TODO# EndLBURPResponse,
-	None, #TODO# LBURPUpdateRequest,
-	None, #TODO# LBURPUpdateResponse,
-	None, #TODO# TurnRequest,
-	None, #TODO# TurnResponse,
-	None, #TODO# StartTxnRequest,
-	None, #TODO# StarttxnResponse,
-	None, #TODO# EndTxnRequest,
-	None, #TODO# EndTxnResponse,
-	None, #TODO# AbortedTxnResponse,
+	StartTLSRequest,
+	StartTLSResponse,
+	PasswdModifyRequest,
+	PasswdModifyResponse,
+	WhoamiRequest,
+	WhoamiResponse,
+	CancelRequest,
+	CancelResponse,
+	StartLBURPRequest,
+	StartLBURPResponse,
+	EndLBURPRequest,
+	EndLBURPResponse,
+	LBURPUpdateRequest,
+	LBURPUpdateResponse,
+	TurnRequest,
+	TurnResponse,
+	StartTxnRequest,
+	StartTxnResponse,
+	EndTxnRequest,
+	EndTxnResponse,
+	AbortedTxnResponse,
 ]
 
 
@@ -115,11 +189,9 @@ for idx in range (len (opcode2dataclass)):
 	cls = opcode2dataclass [idx]
 	if cls is None:
 		continue
-	print 'Class is', cls
 	def make_method (idx, cls):
 		def generic_method (self, msgid, py_data, ctls):
 			assert 1 <= msgid <= 2147483647, 'MessageID out of range'
-			print 'Comparing', py_data, 'to class', cls
 			assert isinstance (py_data, cls), 'Data argument should be an instance of lillydap.' + cls.__name__
 			data = py_data._der_pack ()
 			self.lillyput_operation (msgid, idx, data, ctls)

@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append ('../build/python/lillydap')	#TODO:AWFUL_HARDCODED_PATH#
+
 from lillydap import LillyDAP, AddRequest
 
 lil = LillyDAP ()
