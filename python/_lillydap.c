@@ -38,54 +38,139 @@
 #include <quick-der/api.h>
 
 
-static PyObject *lget_event (PyObject *self, PyObject *args) {
+static PyObject *lget_event (PyObject *self, PyObject *no_args) {
+	//
+	// No parameters -- no parsing
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: msg
+	char *msgptr;
+	Py_ssize_t msglen;
+	if (!PyArg_ParseTuple (args, "s#", &msgptr, &msglen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: msgid, op, controls
+	int msgid;
+	char *opptr;
+	Py_ssize_t oplen;
+	char *ctlptr;
+	Py_ssize_t ctllen;
+	if (!PyArg_ParseTuple (args, "is#s#", &msgid, &opptr, &oplen, &ctlptr, &ctllen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lput_operation (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: msgid, opcode, data, controls
+	int msgid;
+	int opcode;
+	char *dataptr;
+	Py_ssize_t datalen;
+	char *ctlptr;
+	Py_ssize_t ctllen;
+	if (!PyArg_ParseTuple (args, "iis#s#", &msgid, &opcode, &dataptr, &datalen, &ctlptr, &ctllen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: msgid, op, controls
+	int msgid;
+	char *opptr;
+	Py_ssize_t oplen;
+	char *ctlptr;
+	Py_ssize_t ctllen;
+	if (!PyArg_ParseTuple (args, "is#s#", &msgid, &opptr, &oplen, &ctlptr, &ctllen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: msg
+	char *msgptr;
+	Py_ssize_t msglen;
+	if (!PyArg_ParseTuple (args, "s#", &msgptr, &msglen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
+	//
+	// Parse parameters: addend
+	char *addendptr;
+	Py_ssize_t addendlen;
+	if (!PyArg_ParseTuple (args, "s#", &addendptr, &addendlen)) {
+		return NULL;
+	}
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
-static PyObject *lput_cansend (PyObject *self, PyObject *args) {
+static PyObject *lput_cansend (PyObject *self, PyObject *no_args) {
+	//
+	// No parameters -- no parsing
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
-static PyObject *lput_event (PyObject *self, PyObject *args) {
+static PyObject *lput_event (PyObject *self, PyObject *no_args) {
+	//
+	// No parameters -- no parsing
+	//TODO//
+	//
+	// Cleanup and return
 	return NULL;
 }
 
 
 
 static PyMethodDef lil_methods [] = {
-	{ "lillyget_event",       lget_event,       METH_VARARGS, "Indicate to LillyDAP that data may be read" },
+	{ "lillyget_event",       lget_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be read" },
 	{ "lillyget_dercursor",	  lget_dercursor,   METH_VARARGS, "Receive one complete top-level DER structure" },
 	{ "lillyget_ldapmessage", lget_ldapmessage, METH_VARARGS, "Receive one LDAPMessage structure" },
 	{ "lillyput_operation",   lput_operation,   METH_VARARGS, "Send one data operation message" },
 	{ "lillyput_ldapmessage", lput_ldapmessage, METH_VARARGS, "Send one LDAPMessage structure" },
 	{ "lillyput_dercursor",   lput_dercursor,   METH_VARARGS, "Send one complete top-level DER structure" },
 	{ "lillyput_enqueue",     lput_enqueue,     METH_VARARGS, "Append the given text to the outgoing queue" },
-	{ "lillyput_cansend",     lput_cansend,     METH_VARARGS, "Test if the outgoing queue is non-empty" },
-	{ "lillyput_event",       lput_event,       METH_VARARGS, "Indicate to LillyDAP that data may be sent" },
+	{ "lillyput_cansend",     lput_cansend,     METH_NOARGS,  "Test if the outgoing queue is non-empty" },
+	{ "lillyput_event",       lput_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be sent" },
 	{ NULL, NULL, 0, NULL }
 };
 
