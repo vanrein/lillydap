@@ -88,7 +88,7 @@ class LillyDAP (object):
 	   flow of lillyput_xxx().
 	"""
 
-	#TODO# from _lillydap import lillyget_event, lillyget_dercursor, lillyget_ldapmessage, lillyput_ldapmessage, lillyput_operation, lillyput_dercursor, lillyput_event, lillyput_cansend, lillyput_enqueue
+	from _lillydap import lillyget_event, lillyget_dercursor, lillyget_ldapmessage, lillyput_operation, lillyput_ldapmessage, lillyput_dercursor, lillyput_enqueue, lillyput_cansend, lillyput_event
 
 	def lillyget_operation (self, msgid, opcode, data, ctls):
 		"""The lillyget_operation() method receives a partially

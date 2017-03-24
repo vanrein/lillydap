@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+from distutils.core import setup, Extension
+
+sharedlib = Extension (
+	"_lillydap",
+	[ "@CMAKE_CURRENT_SOURCE_DIR@/_lillydap.c", "@CMAKE_SOURCE_DIR@/lib/derbuf.c", "@CMAKE_SOURCE_DIR@/lib/dermsg.c", "@CMAKE_SOURCE_DIR@/lib/msgop.c", "@CMAKE_SOURCE_DIR@/lib/queue.c", "@CMAKE_SOURCE_DIR@/lib/mem.c", "@CMAKE_SOURCE_DIR@/lib/sillymem.c", "/usr/local/src/quick-der/lib/der_header.c","/usr/local/src/quick-der/lib/der_pack.c",  "/usr/local/src/quick-der/lib/der_unpack.c" ],
+	#TODO# Remove sillymem.c ASAP!!!
+	#TODO# Fixed paths to Quick DER are horrible!!!
+	include_dirs = [ "@CMAKE_SOURCE_DIR@/include", "@CMAKE_SOURCE_DIR@/import/openpa-1.0.4/src" ],
+)
+
+if __name__ == '__main__':
+	setup (
+		name='lillydap',
+		version='@CMAKE_PACKAGE_VERSION@',
+		#TODO# package_dir={ '': '@CMAKE_CURRENT_SOURCE_DIR@' },
+		package_dir={ '': '.' },
+		ext_modules=[ sharedlib ],
+		packages=['@CMAKE_CURRENT_SOURCE_DIR@']
+	)
+
