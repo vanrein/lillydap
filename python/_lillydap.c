@@ -34,20 +34,22 @@
 #include <errno.h>
 
 #include <Python.h>
+#include <structmember.h>
 
 #include <lillydap/api.h>
 
 #include <quick-der/api.h>
 
 
+/* The Python object that includes the LillyDAP information is called
+ * PyDAP in the sequel.  Any "self" object is an instance of this
+ * object because LillyDAP inherits from PyDAP.
+ */
 
-//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO
-// I have no idea (yet) how to attach a binary C structure to a PyObject
-// so for now this is a VERY DIRTY HACK -- use a singleton instance only
-// SEE PyCapsule as a type, https://docs.python.org/2/c-api/capsule.html
-//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO//TODO
-
-LillyDAP _1self;
+typedef struct {
+	PyObject_HEAD
+	LillyDAP ldap;
+} PyDAP;
 
 
 static PyObject *lget_event (PyObject *self, PyObject *no_args) {
@@ -55,7 +57,7 @@ static PyObject *lget_event (PyObject *self, PyObject *no_args) {
 	// No parameters -- no parsing
 	//
 	// Inform the underlying code about the read event
-	ssize_t bytes_read = lillyget_event (&_1self);
+	ssize_t bytes_read = lillyget_event (&((PyDAP *) self)->ldap);
 	if (bytes_read == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
@@ -94,7 +96,7 @@ static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
-	if (lillyget_dercursor (&_1self, qpool, dermsg) == -1) {
+	if (lillyget_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -130,7 +132,7 @@ static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
 	op.derlen = oplen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyget_ldapmessage (&_1self, qpool, msgid, op, ctl) == -1) {
+	if (lillyget_ldapmessage (&((PyDAP *) self)->ldap, qpool, msgid, op, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -182,7 +184,7 @@ static PyObject *lput_operation (PyObject *self, PyObject *args) {
 	data->derlen = datalen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyput_operation (&_1self, qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
+	if (lillyput_operation (&((PyDAP *) self)->ldap, qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -218,7 +220,7 @@ static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
 	op.derlen = oplen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyput_ldapmessage (&_1self, qpool, msgid, op, ctl) == -1) {
+	if (lillyput_ldapmessage (&((PyDAP *) self)->ldap, qpool, msgid, op, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -249,7 +251,7 @@ static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
-	if (lillyput_dercursor (&_1self, qpool, dermsg) == -1) {
+	if (lillyput_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -280,7 +282,7 @@ static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = addendptr;
 	dermsg.derlen = addendlen;
-	if (lillyput_dercursor (&_1self, qpool, dermsg) == -1) {
+	if (lillyput_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
 		//TODO// refctr
 		return NULL;
 	}
@@ -292,7 +294,7 @@ static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
 static PyObject *lput_cansend (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
-	bool can_send = lillyput_cansend (&_1self);
+	bool can_send = lillyput_cansend (&((PyDAP *) self)->ldap);
 	//
 	// Cleanup and return
 	if (can_send) {
@@ -306,7 +308,7 @@ static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
 	// Inform the underlying code about the read event
-	ssize_t bytes_read = lillyput_event (&_1self);
+	ssize_t bytes_read = lillyput_event (&((PyDAP *) self)->ldap);
 	if (bytes_read == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
@@ -323,20 +325,6 @@ static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 	// Cleanup and return
 	return retval;
 }
-
-
-static PyMethodDef lil_methods [] = {
-	{ "lillyget_event",       lget_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be read" },
-	{ "lillyget_dercursor",	  lget_dercursor,   METH_VARARGS, "Receive one complete top-level DER structure" },
-	{ "lillyget_ldapmessage", lget_ldapmessage, METH_VARARGS, "Receive one LDAPMessage structure" },
-	{ "lillyput_operation",   lput_operation,   METH_VARARGS, "Send one data operation message" },
-	{ "lillyput_ldapmessage", lput_ldapmessage, METH_VARARGS, "Send one LDAPMessage structure" },
-	{ "lillyput_dercursor",   lput_dercursor,   METH_VARARGS, "Send one complete top-level DER structure" },
-	{ "lillyput_enqueue",     lput_enqueue,     METH_VARARGS, "Append the given text to the outgoing queue" },
-	{ "lillyput_cansend",     lput_cansend,     METH_NOARGS,  "Test if the outgoing queue is non-empty" },
-	{ "lillyput_event",       lput_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be sent" },
-	{ NULL, NULL, 0, NULL }
-};
 
 
 int pyget_operation (LillyDAP *lil, LillyPool qpool,
@@ -365,26 +353,126 @@ int pyget_operation (LillyDAP *lil, LillyPool qpool,
 }
 
 
+static PyObject *pydap_new (PyTypeObject *tp, PyObject *args, PyObject *kwargs) {
+	PyDAP *self;
+	//
+	// Allocate the object to be returned
+	self = (PyDAP *) tp->tp_alloc (tp, 0);
+	if (self == NULL) {
+		return self;
+	}
+	//
+	// Initialise the object before any __init__ user code runs
+	self->ldap.get_fd = -1;
+	self->ldap.put_fd = -1;
+	//
+	// Setup function pointers (TODO: Need to separate static info)
+	self->ldap.lillyget_dercursor   = lillyget_dercursor;
+	self->ldap.lillyget_ldapmessage = lillyget_ldapmessage;
+	self->ldap.lillyput_ldapmessage = lillyput_ldapmessage;
+	self->ldap.lillyput_dercursor   = lillyput_dercursor;
+	self->ldap.lillyget_operation   = pyget_operation;
+	//
+	// Return the prepared C object
+	return self;
+}
+
+static void pydap_dealloc (PyDAP *self) {
+	if (self->ldap.get_fd >= 0) {
+		close (self->ldap.get_fd);
+		self->ldap.get_fd = -1;
+	}
+	if (self->ldap.put_fd >= 0) {
+		close (self->ldap.put_fd);
+		self->ldap.put_fd = -1;
+	}
+}
+
+
+static struct PyMemberDef pydap_members[] = {
+	{ "get_fd", T_INT, offsetof (PyDAP, ldap) + offsetof (LillyDAP, get_fd), 0, "The file descriptor from which data is read when triggered by lillyget_event()" },
+	{ "put_fd", T_INT, offsetof (PyDAP, ldap) + offsetof (LillyDAP, put_fd), 0, "The file descriptor to which data is written when triggered by lillyput_event() or lillyput_enqueue()" },
+	{ NULL, 0, 0, 0, NULL }
+};
+
+
+static PyMethodDef pydap_methods [] = {
+	{ "lillyget_event",       lget_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be read" },
+	{ "lillyget_dercursor",	  lget_dercursor,   METH_VARARGS, "Receive one complete top-level DER structure" },
+	{ "lillyget_ldapmessage", lget_ldapmessage, METH_VARARGS, "Receive one LDAPMessage structure" },
+	{ "lillyput_operation",   lput_operation,   METH_VARARGS, "Send one data operation message" },
+	{ "lillyput_ldapmessage", lput_ldapmessage, METH_VARARGS, "Send one LDAPMessage structure" },
+	{ "lillyput_dercursor",   lput_dercursor,   METH_VARARGS, "Send one complete top-level DER structure" },
+	{ "lillyput_enqueue",     lput_enqueue,     METH_VARARGS, "Append the given text to the outgoing queue" },
+	{ "lillyput_cansend",     lput_cansend,     METH_NOARGS,  "Test if the outgoing queue is non-empty" },
+	{ "lillyput_event",       lput_event,       METH_NOARGS,  "Indicate to LillyDAP that data may be sent" },
+	{ NULL, NULL, 0, NULL }
+};
+
+
+static PyTypeObject pydap_pytype = {
+	PyVarObject_HEAD_INIT (NULL, 0)
+	"_lillydap.PyDAP",		/* tp_name */
+	sizeof (PyDAP),			/* tp_basicsize */
+	0,				/* tp_itemsize */
+	(destructor) pydap_dealloc,	/* tp_dealloc */
+	0,				/* tp_print */
+	0,				/* tp_getattr */
+	0,				/* tp_setattr */
+	0,				/* tp_compare */
+	0,				/* tp_repr */
+	0,				/* tp_as_number */
+	0,				/* tp_as_sequence */
+	0,				/* tp_as_mapping */
+	0,				/* tp_hash */
+	0,				/* tp_call */
+	0,				/* tp_str */
+	0,				/* tp_getattro */
+	0,				/* tp_setattro */
+	0,				/* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+					/* tp_flags */
+	"Python LillyDAP connector",	/* tp_doc */
+	0,				/* tp_traverse */
+	0,				/* tp_clear */
+	0,				/* tp_richcompare */
+	0,				/* tp_weaklistoffset */
+	0,				/* tp_iter */
+	0,				/* tp_iternext */
+	pydap_methods,			/* tp_methods */
+	pydap_members,			/* tp_members */
+	0,				/* tp_getset */
+	0,				/* tp_base */
+	0,				/* tp_dict */
+	0,				/* tp_descr_get */
+	0,				/* tp_descr_set */
+	0,				/* tp_dictoffset */
+	0, //TODO// (initproc) pydap_init,		/* tp_init */
+	0,				/* tp_alloc */
+	pydap_new,			/* tp_new */
+};
+
+
+// Module-generic methods (most interesting things are in pydap_methods)
+static PyMethodDef lil_methods [] = {
+	{ NULL, NULL, 0, NULL }
+};
+
+
 PyMODINIT_FUNC init_lillydap (void) {
+	//
+	// Construct the PyDAP type defined herein
+	if (PyType_Ready (&pydap_pytype) < 0) {
+		return;
+	}
 	PyObject *mod;
 	mod = Py_InitModule ("_lillydap", lil_methods);
 	if (mod == NULL) {
 		return;
 	}
 	//
-	// Initialise _1self
-	memset (&_1self, 0, sizeof (&_1self));
-	_1self.get_fd = 0;
-	_1self.put_fd = 1;
-	//
-	// Setup _1self calls to standard routines of LillyDAP
-	//TODO// Need to bypass these, and check for method overrides
-	_1self.lillyget_dercursor   = lillyget_dercursor;
-	_1self.lillyget_ldapmessage = lillyget_ldapmessage;
-	_1self.lillyput_ldapmessage = lillyput_ldapmessage;
-	_1self.lillyput_dercursor   = lillyput_dercursor;
-	//
-	// Setup bottom of parser stack to continue into Python
-	_1self.lillyget_operation   = pyget_operation;
+	// Further install the PyDAP type so we can subclass/instantiate it
+	Py_INCREF (&pydap_pytype);
+	PyModule_AddObject (mod, "PyDAP", (PyObject *) &pydap_pytype);
 }
 

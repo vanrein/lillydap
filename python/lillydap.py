@@ -3,7 +3,7 @@
 # From: Rick van Rein <rick@openfortress.nl>
 
 
-import string as _lillydap #TODO# import _lillydap
+import _lillydap
 
 
 from quick_der.api import *
@@ -148,7 +148,7 @@ opcode2dataclass = [
 ]
 
 
-class LillyDAP (object):
+class LillyDAP (_lillydap.PyDAP):
 	"""LillyDAP objects represent an input and/or output connection
 	   for the LDAP protocol.  Events are sent to inform the connection
 	   about possibilities of sending or receiving data.  Data is
@@ -161,8 +161,6 @@ class LillyDAP (object):
 	   connect in one downward flow of lillyget_xxx() and one upward
 	   flow of lillyput_xxx().
 	"""
-
-	from _lillydap import lillyget_event, lillyget_dercursor, lillyget_ldapmessage, lillyput_operation, lillyput_ldapmessage, lillyput_dercursor, lillyput_enqueue, lillyput_cansend, lillyput_event
 
 	def lillyget_operation (self, msgid, opcode, data, ctls):
 		"""The lillyget_operation() method receives a partially
