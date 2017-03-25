@@ -74,7 +74,7 @@ rerun_extended:
 	//
 	// Allocate memory for unpacking the operation.
 	// We need not zero the memory because der_unpack() writes NULLs.
-	dercursor *data = lillymem_alloc (lil->cnxpool, pck->len_message);
+	dercursor *data = lillymem_alloc (qpool, pck->len_message);
 	if (data == NULL) {
 		errno = ENOMEM;
 		goto bail_out;

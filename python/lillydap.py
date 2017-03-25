@@ -176,9 +176,13 @@ class LillyDAP (_lillydap.PyDAP):
 			cls = opcode2dataclass [opcode]
 			method_name = 'lillyget_' + cls.__name__
 			bound_method = getattr (self, method_name)
+			if bound_method:
+				print 'lillyget_operation() :- Found method for', method_name
 		except:
 			raise NotImplementedError, 'Method ' + method_name + ' undefined'
+		print 'lillyget_operation() :- instantiating derblob', data.encode ('hex'), 'of length', len (data)
 		py_data = cls (derblob=data)
+		print 'lillyget_operation() :- got Python data', repr (py_data)
 		return bound_method (msgid, py_data, ctls)
 
 

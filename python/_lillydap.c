@@ -36,6 +36,8 @@
 #include <Python.h>
 #include <structmember.h>
 
+//TODO// Replace SILLYMEM with a Python memory model ASAP
+#define USE_SILLYMEM
 #include <lillydap/api.h>
 
 #include <quick-der/api.h>
@@ -51,13 +53,16 @@ typedef struct {
 	LillyDAP ldap;
 } PyDAP;
 
+#define self2ldap(self) (&((PyDAP *) (self))->ldap)
+#define ldap2self(lil) ((struct PyDAP *) &((uint8_t *) (lil)) [-offsetof (PyDAP, ldap)])
+
 
 static PyObject *lget_event (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
 	//
 	// Inform the underlying code about the read event
-	ssize_t bytes_read = lillyget_event (&((PyDAP *) self)->ldap);
+	ssize_t bytes_read = lillyget_event (self2ldap(self));
 	if (bytes_read == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
@@ -96,7 +101,7 @@ static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
-	if (lillyget_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
+	if (lillyget_dercursor (self2ldap(self), qpool, dermsg) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -132,7 +137,7 @@ static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
 	op.derlen = oplen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyget_ldapmessage (&((PyDAP *) self)->ldap, qpool, msgid, op, ctl) == -1) {
+	if (lillyget_ldapmessage (self2ldap(self), qpool, msgid, op, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -184,7 +189,7 @@ static PyObject *lput_operation (PyObject *self, PyObject *args) {
 	data->derlen = datalen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyput_operation (&((PyDAP *) self)->ldap, qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
+	if (lillyput_operation (self2ldap(self), qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -220,7 +225,7 @@ static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
 	op.derlen = oplen;
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
-	if (lillyput_ldapmessage (&((PyDAP *) self)->ldap, qpool, msgid, op, ctl) == -1) {
+	if (lillyput_ldapmessage (self2ldap(self), qpool, msgid, op, ctl) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -251,7 +256,7 @@ static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
-	if (lillyput_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
+	if (lillyput_dercursor (self2ldap(self), qpool, dermsg) == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
 		return NULL;
@@ -282,7 +287,7 @@ static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
 	dercursor dermsg;
 	dermsg.derptr = addendptr;
 	dermsg.derlen = addendlen;
-	if (lillyput_dercursor (&((PyDAP *) self)->ldap, qpool, dermsg) == -1) {
+	if (lillyput_dercursor (self2ldap(self), qpool, dermsg) == -1) {
 		//TODO// refctr
 		return NULL;
 	}
@@ -294,7 +299,7 @@ static PyObject *lput_enqueue (PyObject *self, PyObject *args) {
 static PyObject *lput_cansend (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
-	bool can_send = lillyput_cansend (&((PyDAP *) self)->ldap);
+	bool can_send = lillyput_cansend (self2ldap(self));
 	//
 	// Cleanup and return
 	if (can_send) {
@@ -308,7 +313,7 @@ static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 	//
 	// No parameters -- no parsing
 	// Inform the underlying code about the read event
-	ssize_t bytes_read = lillyput_event (&((PyDAP *) self)->ldap);
+	ssize_t bytes_read = lillyput_event (self2ldap(self));
 	if (bytes_read == -1) {
 		PyErr_SetFromErrno (PyExc_OSError);
 		//TODO// refctr
@@ -334,16 +339,31 @@ int pyget_operation (LillyDAP *lil, LillyPool qpool,
 				const dercursor controls) {
 	//
 	// Find the object to invoke the method on
-	//TODO//
-	PyObject *self = NULL;
+	PyObject *self = ldap2self(lil);
+	printf ("self = %016lx\n", (long) self);
 	//
 	// Invoke the method in Python
+	//DEBUG.BEGIN//
+	PyObject *noat = PyObject_GetAttrString (self, "lillyget_no_attr");
+	printf ("noat = %016lx\n", (long) noat);
+	Py_XDECREF (noat);
+	PyObject *attr = PyObject_GetAttrString (self, "lillyget_operation");
+	printf ("attr = %016lx\n", (long) attr);
+	if (attr && PyCallable_Check (attr)) {
+		printf ("Attribute is callable\n");
+	} else {
+		printf ("Attribute is not callable\n");
+	}
+	Py_XDECREF (attr);
+	printf ("setting up with data length %d\n", (int) data->derlen);
+	//DEBUG.END//
 	PyObject *result = PyObject_CallMethod (self,
 			"lillyget_operation", "(iis#s#)",
 			(int) msgid, (int) opcode,
 			data->derptr, data->derlen,
 			controls.derptr, controls.derlen);
 	if (result == NULL) {
+		PyErr_Print ();
 		return -1;
 	}
 	//
@@ -460,6 +480,12 @@ static PyMethodDef lil_methods [] = {
 
 
 PyMODINIT_FUNC init_lillydap (void) {
+	//
+	// Setup the memory management routines for LillyDAP
+	//TODO// For now, use SillyMem instead of more Python-aware memory
+	lillymem_newpool_fun = sillymem_newpool;
+	lillymem_endpool_fun = sillymem_endpool;
+	lillymem_alloc_fun   = sillymem_alloc  ;
 	//
 	// Construct the PyDAP type defined herein
 	if (PyType_Ready (&pydap_pytype) < 0) {

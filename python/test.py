@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
+import os
 import sys
 sys.path.append ('../build/python/lillydap')	#TODO:AWFUL_HARDCODED_PATH#
 
 from lillydap import LillyDAP, AddRequest
 
-lil = LillyDAP ()
+class MyLIL (LillyDAP):
+
+	def lillyget_SearchResultEntry (self, *args):
+		print 'Whee, got a search result entry!'
+
+lil = MyLIL ()
 
 print 'LillyDAP instance has attributes', dir (lil)
 
@@ -21,5 +27,17 @@ def lpo (msgid, opcode, data, ctls):
 
 lil.lillyput_operation = lpo
 
+print '<<< lillyput_AddRequest()'
 lil.lillyput_AddRequest (123, addreq, [('x',False,3)])
+print '>>> lillyput_AddRequest()'
+
+(r,w) = os.pipe ()
+lil.get_fd = r
+lil.put_fd = sys.stdout.fileno ()
+d = open ('../test/ldap/103-search-resentry.bin').read ()
+os.write (w,d)
+print '<<< lillyput_event()'
+lil.lillyget_event ()
+print '>>> lillyput_event()'
+
 

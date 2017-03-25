@@ -100,7 +100,7 @@ those sometime soon.  The routines are really quite silly.
 ```
 lillymem_newpool_fun = sillymem_newpool;
 lillymem_endpool_fun = sillymem_endpool;
-lillymem_alloc_fun   = sillymem_alloc;
+lillymem_alloc_fun   = sillymem_alloc  ;
 ```
 
 When you want to allocate memory, you should start by allocating a region
