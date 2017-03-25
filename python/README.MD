@@ -11,7 +11,7 @@ A simple usage example of the LillyDAP port to Python is:
 ```
 from lillydap import LillyDAP, BindResponse
 
-class myDAPapp (LillyDAP):
+class MyDAPapp (LillyDAP):
 
     def lillyget_BindRequest (self, msgid, bindreq, ctl):
         if bindreq.authentication.simple == 'sekreet':
@@ -20,7 +20,7 @@ class myDAPapp (LillyDAP):
             bindresp.diagnosticMessage = 'Welcome'
             self.lillyput_BindResponse (msgid, bindresp, {})
 
-lil = myDAPapp ()
+lil = MyDAPapp ()
 lil.get_fd = 0
 lil.put_fd = 1
 #TODO# Set I/O to non-blocking

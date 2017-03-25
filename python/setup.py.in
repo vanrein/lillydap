@@ -5,7 +5,7 @@ from distutils.core import setup, Extension
 sharedlib = Extension (
 	"_lillydap",
 	#TODO:WONTWORK# define_macros = [ ('USE_SILLYMEM', '1') ],
-	include_dirs = [ "@CMAKE_SOURCE_DIR@/include", "@CMAKE_SOURCE_DIR@/import/openpa-1.0.4/src" ],
+	include_dirs = [ "@CMAKE_SOURCE_DIR@/include", "@CMAKE_SOURCE_DIR@/import/openpa-1.0.4/src", "@CMAKE_CURRENT_BINARY_DIR@" ],
 	sources = [ "@CMAKE_CURRENT_SOURCE_DIR@/_lillydap.c", "@CMAKE_SOURCE_DIR@/lib/derbuf.c", "@CMAKE_SOURCE_DIR@/lib/dermsg.c", "@CMAKE_SOURCE_DIR@/lib/msgop.c", "@CMAKE_SOURCE_DIR@/lib/queue.c", "@CMAKE_SOURCE_DIR@/lib/mem.c", "@CMAKE_CURRENT_SOURCE_DIR@/tmp_sillymem.c", "/usr/local/src/quick-der/lib/der_header.c","/usr/local/src/quick-der/lib/der_pack.c",  "/usr/local/src/quick-der/lib/der_unpack.c" ],
 	#TODO# Remove sillymem.c ASAP!!!
 	#TODO# Fixated paths to Quick DER are horrible!!!

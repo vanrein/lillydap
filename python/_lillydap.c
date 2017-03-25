@@ -40,9 +40,7 @@
 
 #include <quick-der/api.h>
 
-//TODO// Incredibly wasteful, to include the file just to share opcode_table
-#define lillymsg_packinfo_ext lillymsg_packinfo_ext2
-#include "../lib/msgop.tab"
+#include "opsize.h"
 
 
 /* The Python object that includes the LillyDAP information is called
@@ -359,7 +357,7 @@ int pyget_operation (LillyDAP *lil, LillyPool qpool,
 	printf ("self = %016lx\n", (long) self);
 	//
 	// Map dercursor bindata[] to a Python list of strings
-	int numcursori = opcode_table [opcode].len_message / sizeof (dercursor);
+	int numcursori = opcode_table [opcode].numcursori;
 	PyObject *bindata = PyList_New (numcursori);
 	if (bindata == NULL) {
 		//TODO// refctr
