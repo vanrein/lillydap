@@ -38,9 +38,9 @@ print '>>> lillyput_AddRequest()'
 (r,w) = os.pipe ()
 lil.get_fd = r
 lil.put_fd = sys.stdout.fileno ()
-d = open ('../test/ldap/103-search-resentry.bin').read ()
-os.write (w,d)
 d = open ('../test/ldap/001-search-resentry-rejected.bin').read ()
+os.write (w,d)
+d = open ('../test/ldap/103-search-resentry.bin').read ()
 os.write (w,d)
 os.close (w)
 print '<<< lillyput_event()'

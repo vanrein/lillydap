@@ -5,9 +5,9 @@
 > of it, which may be better served in a language like Python.  For this
 > reason, as well as for prototyping purposes, we map LillyDAP to Python.*
 
-**WORK TO BE DONE**
+**TODO: WORK IN ITS INFANCY, THE CODE IS FULL OF KLUDGES AND BARELY TESTED**
 
-A simple usage example of the LillyDAP port to Python would be:
+A simple usage example of the LillyDAP port to Python is:
 ```
 from lillydap import LillyDAP, BindResponse
 
@@ -23,6 +23,7 @@ class myDAPapp (LillyDAP):
 lil = myDAPapp ()
 lil.get_fd = 0
 lil.put_fd = 1
+#TODO# Set I/O to non-blocking
 while True:
 	# signal to cause a reading attempt
 	# this is polling, you can do better

@@ -205,3 +205,14 @@ for idx in range (len (opcode2dataclass)):
 	setattr (LillyDAP, method_name, make_method (idx, cls))
 
 
+# A number of types have more specific definitions in text than in ASN.1
+# and so their printers can be made prettier
+
+def _str_unicode_ (self):
+	return unicode (self.get ())
+
+def _str_ascii_ (self):
+	return str (self.get ())
+
+LDAPString.__str__ = _str_unicode_
+LDAPOID.__str__ = _str_ascii_
