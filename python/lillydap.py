@@ -162,14 +162,16 @@ class LillyDAP (_lillydap.PyDAP):
 	   flow of lillyput_xxx().
 	"""
 
-	def lillyget_operation (self, msgid, opcode, data, ctls):
+	def lillyget_operation (self, msgid, opcode, bindata, ctls):
 		"""The lillyget_operation() method receives a partially
 		   parsed operation.  What is done here is to split it up
 		   into individual methods, named by the operation.  When
 		   these operations are not overridden in a subclass,
 		   NotImplementedError is reported.  This method also cares
-		   for parsing of the data to an operation-specific data
-		   structure.
+		   for further processing of the bindata list of strings
+		   to an operation-specific data structure, including
+		   nested invocations of der_unpack() to accommodate the
+		   specific needs of the targeted command.
 		"""
 		method_name = '(?)'
 		try:
@@ -180,10 +182,11 @@ class LillyDAP (_lillydap.PyDAP):
 				print 'lillyget_operation() :- Found method for', method_name
 		except:
 			raise NotImplementedError, 'Method ' + method_name + ' undefined'
-		print 'lillyget_operation() :- instantiating derblob', data.encode ('hex'), 'of length', len (data)
-		py_data = cls (derblob=data)
+		print 'lillyget_operation() :- instantiating bindata', bindata
+		py_data = cls (bindata=bindata)
 		print 'lillyget_operation() :- got Python data', repr (py_data)
-		return bound_method (msgid, py_data, ctls)
+		bound_method (msgid, py_data, ctls)
+		print 'lillyget_operation() :- done!'
 
 
 # Generate the lillyput_OperationByName() methods from opcode2dataclass[]

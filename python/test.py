@@ -8,8 +8,12 @@ from lillydap import LillyDAP, AddRequest
 
 class MyLIL (LillyDAP):
 
-	def lillyget_SearchResultEntry (self, *args):
+	def lillyget_SearchResultEntry (self, msgid, sre, ctl):
 		print 'Whee, got a search result entry!'
+		print 'MessageID      =', msgid
+		print 'sre.objectName =', sre.objectName
+		print 'sre.attributes =', sre.attributes
+		print 'Whee, we have completed our work!'
 
 lil = MyLIL ()
 
@@ -36,6 +40,9 @@ lil.get_fd = r
 lil.put_fd = sys.stdout.fileno ()
 d = open ('../test/ldap/103-search-resentry.bin').read ()
 os.write (w,d)
+d = open ('../test/ldap/001-search-resentry-rejected.bin').read ()
+os.write (w,d)
+os.close (w)
 print '<<< lillyput_event()'
 lil.lillyget_event ()
 print '>>> lillyput_event()'

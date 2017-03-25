@@ -31,8 +31,6 @@
  */
 
 
-#include <errno.h>
-
 #include <Python.h>
 #include <structmember.h>
 
@@ -41,6 +39,10 @@
 #include <lillydap/api.h>
 
 #include <quick-der/api.h>
+
+//TODO// Incredibly wasteful, to include the file just to share opcode_table
+#define lillymsg_packinfo_ext lillymsg_packinfo_ext2
+#include "../lib/msgop.tab"
 
 
 /* The Python object that includes the LillyDAP information is called
@@ -64,7 +66,9 @@ static PyObject *lget_event (PyObject *self, PyObject *no_args) {
 	// Inform the underlying code about the read event
 	ssize_t bytes_read = lillyget_event (self2ldap(self));
 	if (bytes_read == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -102,7 +106,9 @@ static PyObject *lget_dercursor (PyObject *self, PyObject *args) {
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
 	if (lillyget_dercursor (self2ldap(self), qpool, dermsg) == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -138,7 +144,9 @@ static PyObject *lget_ldapmessage (PyObject *self, PyObject *args) {
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
 	if (lillyget_ldapmessage (self2ldap(self), qpool, msgid, op, ctl) == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -190,7 +198,9 @@ static PyObject *lput_operation (PyObject *self, PyObject *args) {
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
 	if (lillyput_operation (self2ldap(self), qpool, msgid, (uint8_t) opcode, data, ctl) == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -226,7 +236,9 @@ static PyObject *lput_ldapmessage (PyObject *self, PyObject *args) {
 	ctl.derptr = ctlptr;
 	ctl.derlen = ctllen;
 	if (lillyput_ldapmessage (self2ldap(self), qpool, msgid, op, ctl) == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -257,7 +269,9 @@ static PyObject *lput_dercursor (PyObject *self, PyObject *args) {
 	dermsg.derptr = msgptr;
 	dermsg.derlen = msglen;
 	if (lillyput_dercursor (self2ldap(self), qpool, dermsg) == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -315,7 +329,9 @@ static PyObject *lput_event (PyObject *self, PyObject *no_args) {
 	// Inform the underlying code about the read event
 	ssize_t bytes_read = lillyput_event (self2ldap(self));
 	if (bytes_read == -1) {
-		PyErr_SetFromErrno (PyExc_OSError);
+		if (!PyErr_Occurred ()) {
+			PyErr_SetFromErrno (PyExc_OSError);
+		}
 		//TODO// refctr
 		return NULL;
 	}
@@ -342,25 +358,34 @@ int pyget_operation (LillyDAP *lil, LillyPool qpool,
 	PyObject *self = ldap2self(lil);
 	printf ("self = %016lx\n", (long) self);
 	//
-	// Invoke the method in Python
-	//DEBUG.BEGIN//
-	PyObject *noat = PyObject_GetAttrString (self, "lillyget_no_attr");
-	printf ("noat = %016lx\n", (long) noat);
-	Py_XDECREF (noat);
-	PyObject *attr = PyObject_GetAttrString (self, "lillyget_operation");
-	printf ("attr = %016lx\n", (long) attr);
-	if (attr && PyCallable_Check (attr)) {
-		printf ("Attribute is callable\n");
-	} else {
-		printf ("Attribute is not callable\n");
+	// Map dercursor bindata[] to a Python list of strings
+	int numcursori = opcode_table [opcode].len_message / sizeof (dercursor);
+	PyObject *bindata = PyList_New (numcursori);
+	if (bindata == NULL) {
+		//TODO// refctr
+		return NULL;
 	}
-	Py_XDECREF (attr);
-	printf ("setting up with data length %d\n", (int) data->derlen);
-	//DEBUG.END//
+	while (numcursori-- > 0) {
+		PyObject *elem;
+		if (data [numcursori].derptr == NULL) {
+			elem = Py_None; //TODO// refctr
+		} else {
+			elem = PyString_FromStringAndSize ((char *) data [numcursori].derptr, data [numcursori].derlen);
+			if (elem == NULL) {
+				//TODO// refctr
+				return NULL;
+			}
+		}
+		if (PyList_SetItem (bindata, numcursori, elem)) {
+			//TODO// refctr
+			return NULL;
+		}
+	}
+	//
+	// Invoke the method in Python
 	PyObject *result = PyObject_CallMethod (self,
-			"lillyget_operation", "(iis#s#)",
-			(int) msgid, (int) opcode,
-			data->derptr, data->derlen,
+			"lillyget_operation", "(iiOs#)",
+			(int) msgid, (int) opcode, bindata,
 			controls.derptr, controls.derlen);
 	if (result == NULL) {
 		PyErr_Print ();
