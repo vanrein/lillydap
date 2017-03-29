@@ -20,10 +20,6 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifndef USE_SILLYMEM
-#define USE_SILLYMEM
-#endif
-
 #include <lillydap/api.h>
 #include <lillydap/mem.h>
 
@@ -37,56 +33,147 @@
 #define DERCURSOR_P_CAST(x) ((dercursor *)(&(x)))
 #define DERCURSOR_CAST(x) (*DERCURSOR_P_CAST(x))
 
+# define DER_FILTER_OP(x) (0xa0 | x)
+char *filterop_strings[] = {
+	"AND",  /* these first three are not used */
+	"OR",
+	"NOT",
+	"==",
+	"sub",
+	">=",
+	"<=",
+	"?",
+	"~="
+};
+
+int print_attributevalueassertion(int filterop, dercursor crs)
+{
+	uint8_t tag;
+	size_t len;
+	uint8_t hlen;
+
+	if ((filterop < 3) || (filterop > (sizeof(filterop_strings) / sizeof(char *))))
+	{
+		return -1;
+	}
+
+	dercursor first = crs;
+	if (der_header(&first, &tag, &len, &hlen) < 0)
+	{
+		return -1;
+	}
+	if (tag != 0x04)	/* LDAPString == OCTET STRING */
+	{
+		return -1;
+	}
+	first.derlen = len;
+
+	dercursor second = crs;
+	der_skip(&second);
+	if (der_header(&second, &tag, &len, &hlen) < 0)
+	{
+		return -1;
+	}
+	if (tag != 0x04)	/* LDAPString == OCTET STRING */
+	{
+		return -1;
+	}
+	second.derlen = len;
+
+	printf("%.*s %s %.*s", (int)first.derlen, first.derptr, filterop_strings[filterop], (int)second.derlen, second.derptr);
+
+	return 0;
+}
+
+void _filter_indent(int depth)
+{
+	while (depth-- > 0)
+	{
+		printf("  ");
+	}
+}
+
 /* A print routine for the filter, mathematically optimising by pushing the
  * NOT into the structure, and letting AND and OR ripple to the outside,
  * so there is some minimal filter expression structure to be relied upon.
  */
-int print_filter (dercursor filter, int inverted) {
+int _print_filter (dercursor filter, int inverted, int depth) {
 	int err = 0;
 	uint8_t tag;
 	uint8_t hlen;
 	size_t len;
+
+	/* Get the operation tag for this filter; if it's NOT,
+	 * then drill into the filter inside the NOT, toggling
+	 * inverted as we go.
+	 */
 	do {
 		err = err || der_header (&filter, &tag, &len, &hlen);
-		if ((err == 0) && (tag == DER_TAG_CONTEXT (2))) {	/*NOT*/
+		if ((err == 0) && (tag == DER_FILTER_OP(2))) {	/*NOT*/
 			inverted = !inverted;
-			filter.derptr += hlen;
-			filter.derlen -= hlen;
-			continue;
 		}
-	} while (0);
+		else {
+			break;
+		}
+	} while (1);
+
+	if (err)
+	{
+		return err;
+	}
+
 	switch (tag) {
-	case DER_TAG_CONTEXT(0):	/*AND*/
-	case DER_TAG_CONTEXT(1):	/*OR*/
+	case DER_FILTER_OP(0):	/*AND*/
+	case DER_FILTER_OP(1):	/*OR*/
 		if (inverted) {
-			tag ^= DER_TAG_CONTEXT(0) ^ DER_TAG_CONTEXT(1);
+			tag ^= DER_FILTER_OP(0) ^ DER_FILTER_OP(1);
 		}
-		//SHORTCUT// if (len == 0) {
-		//SHORTCUT// 	if (tag == DER_TAG_CONTEXT(0)) {
-		//SHORTCUT// 		printf ("FALSE");	/* Bad syntax */
-		//SHORTCUT// 		return 0;
-		//SHORTCUT// 	} else {
-		//SHORTCUT// 		printf ("TRUE");	/* Bad syntax */
-		//SHORTCUT// 		return 0;
-		//SHORTCUT// 	}
-		//SHORTCUT// } else {
-			err = err || der_enter (&filter);
-			printf ("(%c", (tag == DER_TAG_CONTEXT(0))? '&': '|');
-			while ((err == 0) && (filter.derlen > 0)) {
-				dercursor subexp = filter;
-				err = err || der_focus (&subexp);
-				err = err || print_filter (subexp, inverted);
-				err = err || der_skip (&filter);
-			}
-			printf (")");
-		//SHORTCUT// }
+		printf("(%c\n", (tag == DER_FILTER_OP(0)) ? '&' : '|');
+		int count = 0;
+		dercursor subexpr;
+		if (der_iterate_first(&filter, &subexpr))
+		{
+			do {
+				_filter_indent(depth >= 0 ? depth+1 : -1);
+				printf("(");
+				_print_filter(subexpr, inverted, depth >= 0 ? depth+1 : -1);
+				printf(")\n");
+				++count;
+			} while (der_iterate_next(&subexpr));
+		}
+		if (!count)
+		{
+			/* An empty AND is 1, empty OR is 0 */
+			printf("%c", (tag == DER_FILTER_OP(0)) ? '1' : '0');
+		}
+		printf(")\n");
+		break;
+	case DER_FILTER_OP(3):	/* equality */
+	case DER_FILTER_OP(4):	/* substrings */
+	case DER_FILTER_OP(5):	/* >= */
+	case DER_FILTER_OP(6):	/* <= */
+	case DER_FILTER_OP(7):	/* present */
+	case DER_FILTER_OP(8):	/* approx */
+		printf("%s", inverted ? "!(" : "");
+		if ((tag == DER_FILTER_OP(4)) || (tag == DER_FILTER_OP(7))) {
+			printf("TAG=%02x P=%p L=%zu", tag, filter.derptr, filter.derlen);
+		} else {
+			/* The rest use AttributeValueAssertion */
+			err = err || print_attributevalueassertion(tag & (~DER_FILTER_OP(0)), filter);
+		}
+		printf("%s", inverted ? ")" : "");
 		break;
 	default:
-		printf ("(%s0x%02x,%p,%d%s)", inverted? "NOT(": "", tag, filter.derptr, (int) filter.derlen, inverted? ")": "");
+		printf ("OP: (%s TAG=%02x,%p,%d%s)\n", inverted? "NOT(": "", tag, filter.derptr, (int) filter.derlen, inverted? ")": "");
 	}
+#undef DER_FILTER_OP
+
 	return err? -1: 0;
 }
 
+int print_filter (dercursor filter) {
+	return _print_filter(filter, 0, 0);
+}
 
 int lillyget_BindRequest (LDAP *lil,
 				LillyPool qpool,
@@ -178,8 +265,8 @@ int lillyget_SearchRequest (LDAP *lil,
 		}
 	}
 	// filter
-	printf (" - filter = ");
-	print_filter (DERCURSOR_CAST(sr->filter), 0);
+	printf (" - filter =\n");
+	print_filter (DERCURSOR_CAST(sr->filter));
 	printf ("\n");
 	// attributes SEQUENCE OF LDAPString
 	dercursor attrs = sr->attributes.wire;

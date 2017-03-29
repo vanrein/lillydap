@@ -1,13 +1,18 @@
+# Executables that use Sillymem can be added through the
+# macro add_executable_silly(), which adds the necessary
+# definitions and extra sources.
 set(SILLY_SRC ../lib/sillymem.c)
+macro(add_executable_silly _name)
+	add_executable(${_name} ${ARGN} ${SILLY_SRC})
+	set_target_properties (
+		${_name}
+		PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
+	)
+endmacro()
 
-add_executable (
+add_executable_silly (
 	lillydump.test
 	lillydump.c
-	${SILLY_SRC}
-)
-set_target_properties (
-	lillydump.test
-	PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
 )
 target_link_libraries (
 	lillydump.test
@@ -16,16 +21,11 @@ target_link_libraries (
 )
 
 if (NOT ${BUILD_SINGLE_THREADED})
-	add_executable (
+	add_executable_silly (
 		stampede.test
 		stampede.c
-		${SILLY_SRC}
 	)
 
-	set_target_properties (
-		stampede.test
-		PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
-	)
 	#TODO# Really -pthread, literally?!?
 	if(THREADS_HAVE_PTHREAD_ARG)
 		target_compile_options(stampede.test "-pthread")
@@ -38,20 +38,14 @@ if (NOT ${BUILD_SINGLE_THREADED})
 	)
 endif()
 
-add_executable (
+add_executable_silly (
 	lillypass.test
 	lillypass.c
-	${SILLY_SRC}
-)
-set_target_properties (
-	lillypass.test
-	PROPERTIES COMPILE_DEFINITIONS USE_SILLYMEM
 )
 target_link_libraries (
 	lillypass.test
 	lillydapStatic
 	${Quick-DER_STATIC_LIBRARIES}
-	#ORIG# ${Quick-DER_LIBRARIES}
 )
 
 file (GLOB netpkgs ldap/*.bin)
