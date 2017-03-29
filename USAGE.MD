@@ -91,11 +91,26 @@ As a result, you need to setup a few things explicitly.  This is not always
 a real concern; much of it can be done efficiently, in static data structures
 that you define in your program.
 
+
+### Memory Allocation Functions
+
 The first thing one should do to setup LillyDAP, is provide it with
-memory handling routines.  For lack of a better choice, you may start setting
-the `lillymem_xxx()` routines to the rather ineffecient, but at least
-functional, `sillymem_xxx()` routines &mdash; but you should plan to replace
-those sometime soon.  The routines are really quite silly.
+memory handling routines.  LillyDAP uses a pool-based memory handler,
+but you must provide one. (Another name is region-based handler).
+For convenience, a simple pool-based allocator called *sillymem* is
+provided, but you can also wire in your own. Note that you must wire
+in the allocator by hand; LillyDAP does not come with *sillymem* pre-configured.
+
+The API that the memory handler follows is defined in [mem.h](include/lillydap/mem.h),
+and consists of three functions: newpool (to create a new pool, or region),
+endpool (to release a pool, or region) and alloc (to allocate memory from a pool).
+Pools are allocated and released. Individual memory requests are allocated from
+a pool and not released -- that is done by releasing the entire pool. This
+reduces memory-management overhead in the processing pipeline.
+
+To configure LillyDAP to use the memory allocator, assign function pointers
+to the three symbols provided. For example, to wire in *sillymem* (which provides
+functions called `sillymem_newpool()` and similar) to LillyDAP's memory handling:
 
 ```
 lillymem_newpool_fun = sillymem_newpool;
@@ -103,8 +118,14 @@ lillymem_endpool_fun = sillymem_endpool;
 lillymem_alloc_fun   = sillymem_alloc;
 ```
 
-When you want to allocate memory, you should start by allocating a region
-to allocate from,
+Within LillyDAP code (including middleware built on top of LillyDAP), use
+the LillyDAP memory-handling API instead of calling directly to the underlying
+memory handler. This ensures consistent memory usage (and in particular consistent
+allocations and releases).
+
+When you want to allocate memory, you should start by allocating a pool
+to allocate from:
+
 ```
 LillyPool *lipo = lillymem_newpool ();
 if (lipo == NULL) {
@@ -112,21 +133,34 @@ if (lipo == NULL) {
     exit (1);
 }
 ```
-You do not have to `free()` the individual allocations in these regions,
-but instead clear the entire region at once:
+
+Individual allocations are done from a pool by calling `lillymem_alloc()`,
+passing in the size of the allocation; or `lillymem_alloc0()` which will
+zero-fill the resulting memory.
+
+```
+void *p = lillymem_alloc (lipo);
+```
+
+You do not have to `free()` the individual allocations from a pool,
+but instead release the entire pool at once:
+
 ```
 lillymem_endpool (lipo);
 ```
+
 The idea is that you use this to simplify your programs; it is especially
 effective for short-lived storage requirements, such as per-query storage,
 possibly topped off with some per-connection storage.  Cleaning up a
-region can be done when a query is handled, or when a connection is closed.
+pool can be done when a query is handled, or when a connection is closed.
 The cleanup of a query can in fact be delegated to the writing routines;
-the `lillyget_xxx()` routines pass a region pool down, and `lillyput_xxx()`
+the `lillyget_xxx()` routines pass a pool down the stack, and `lillyput_xxx()`
 pass it up, the idea being that the former creates the pools and the latter
 destroys them.  You may intervene with this, and decide to pass on a fresh
-region pool if you would like to retain data for longer than the called
+pool if you would like to retain data for longer than the called
 routines use it.
+
+### Operation Functions
 
 You also need to link the operations, as they are set to `NULL` or
 undefined by default.  The stack shown above already gives
