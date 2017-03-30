@@ -160,6 +160,61 @@ destroys them.  You may intervene with this, and decide to pass on a fresh
 pool if you would like to retain data for longer than the called
 routines use it.
 
+### Driving LillyDAP
+
+LillyDAP fundamentally works on file descriptors, using `read()` and `write()`
+to get bytes and to send them away. These are indicated by the two calls
+in the *input/output* part of the diagram.
+
+The entry points for driving LillyDAP are the functions `lillyget_event()`
+which reads data from the input-file descriptor, and `lilltput_event()`
+which writes to the output-file descriptor. Both functions use a `LillyDAP*`
+structure, which is comparable to the `LDAP*` structure used in most LDAP
+implementations.
+
+To set up LillyDAP's drivers, allocate a `LillyDAP*` structure, and configure
+the file descriptors that it will read and write from:
+
+```
+/* lipo is a pool, such as allocated above in Memory Allocation Functions */
+LillyDAP *lil;
+lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
+
+lil->get_fd = input_fd; /* e.g. a network socket, or 0 for stdin */
+lil->put_fd = output_fd; /* e.g. 1 for stdout */
+```
+
+LillyDAP uses the standard `read()` and `write()` system calls to read those
+file descriptors. Call `lillyget_event()` to read from the input-file descriptor.
+The call will block until a complete DER-encoded message (an LDAP message)
+has been read from the input-file descriptor, at which point the processing
+stack is called to deal with the message.
+
+By default the processing stack is not configured, and will return errors
+only -- see below, Operation Functions, for configuration information.
+
+When the processing stack is configured, the message first flows down the
+stack to the *netbytes*, *dercursor*, *ldapmessage* and *operation* layers.
+Eventually one of those layers passes the message to the output side of
+the stack, from where the message flows back up until it hits the *netbytes*
+layer. Any output message(s) that the processing has created, will be
+queued for output until `lillyput_event()` is called, which writes to the
+output-file descriptor and completes the processing.
+
+Typical code will loop on getting and putting LDAP events, something like this:
+
+```
+while (1) {
+  /* Skip all error handling here */
+  lillyget_event(lil);  /* lil allocated above, configured below */
+  lillyput_event(lil);
+}
+```
+
+Note once more that the processing stack must be configured (see below) before
+any of the layers of the stack are connected; until then only errors will
+be returned.
+
 ### Operation Functions
 
 You also need to link the operations, as they are set to `NULL` or
@@ -186,7 +241,7 @@ setup, so it can be setup in data structures.)
 If you want to parse operations into individual operations and data
 structures, you will need to setup the according switch with the callback
 functions that handle them:
-```
+ ```
 static const LillyOpRegistry opregistry = {
     .by_name = {
         .BindRequest = lillyput_BindRequest,
