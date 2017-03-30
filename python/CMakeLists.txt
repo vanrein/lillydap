@@ -21,7 +21,7 @@ add_custom_target (lillydap-shared-module ALL
 		DEPENDS lillydap-shared-module-build)
 add_custom_command (TARGET lillydap-shared-module
 	POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/lillydap.py ${CMAKE_CURRENT_BINARY_DIR}/lillydap
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/lillydap.py ${CMAKE_CURRENT_BINARY_DIR}/lillydap/__init__.py
 	)
 
 add_custom_command (OUTPUT opsize.h
@@ -29,6 +29,6 @@ add_custom_command (OUTPUT opsize.h
 
 #OLD# install(FILES _quickder.so DESTINATION ${PYTHON_SITE_PACKAGES}/quick_der)
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api.py DESTINATION ${PYTHON_SITE_PACKAGES}/quick_der)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${PYTHON_SITE_PACKAGES}/quick_der)
+#SEECOPYABOVE# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/lillydap.py DESTINATION ${PYTHON_SITE_PACKAGES}/lillydap/__init__.py)
+# install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py DESTINATION ${PYTHON_SITE_PACKAGES}/lillydap)
 install(CODE "execute_process(COMMAND ${CMAKE_CURRENT_BINARY_DIR}/setup.py install)")
