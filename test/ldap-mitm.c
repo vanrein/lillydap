@@ -92,7 +92,53 @@ int set_port(int *port, const char *arg)
 	return 0;
 }
 
-int connect_server(const char *hostname, int port)
+int set_nonblocking(int fd, int blocking)
+{
+	int flags = fcntl(fd, F_GETFL, 0);
+	if (flags < 0)
+	{
+		perror("Can't get socket flags");
+		close(fd);
+		return -1;
+	}
+
+	int newflags = flags;
+	if (blocking)
+	{
+		newflags |= O_NONBLOCK;
+	}
+	else
+	{
+		newflags &= (~O_NONBLOCK);
+	}
+
+	if (flags == newflags)
+	{
+		/* Nothing to do. */
+		return 0;
+	}
+
+	if (fcntl(fd, F_SETFL, newflags) < 0)
+	{
+		perror("Can't set socket flags");
+		close(fd);
+		return -1;
+	}
+	return 0;
+}
+
+int try_nonblocking(int fd, const char *hostname, int port)
+{
+	if (set_nonblocking(fd, 1) < 0)
+	{
+		fprintf(stderr, "Could not set connection options to '%s:%d'.\n", hostname, port);
+		return -1;
+	}
+
+	return 0;
+}
+
+int connect_server(const char *hostname, int port, int nonblocking)
 {
 	struct hostent *server = gethostbyname(hostname);
 	if (!server)
@@ -122,10 +168,18 @@ int connect_server(const char *hostname, int port)
 		return -1;
 	}
 
+	if (nonblocking)
+	{
+		if (try_nonblocking(sid, hostname, port) < 0)
+		{
+			return -1;
+		}
+	}
+
 	return sid;
 }
 
-int listen_client(const char *hostname, int port)
+int listen_client(const char *hostname, int port, int nonblocking)
 {
 	struct hostent *server = gethostbyname(hostname);
 	if (!server)
@@ -173,6 +227,15 @@ int listen_client(const char *hostname, int port)
 		return -1;
 	}
 	close(sid);
+
+	if (nonblocking)
+	{
+		if (try_nonblocking(client_fd, hostname, port) < 0)
+		{
+			return -1;
+		}
+	}
+
 	return client_fd;
 }
 
@@ -412,13 +475,13 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	int server_fd = connect_server((hflag ? hflag : localhost), portval);
+	int server_fd = connect_server((hflag ? hflag : localhost), portval, lillyflag);
 	if (server_fd < 0)
 	{
 		usage();
 	}
 
-	int client_fd = listen_client((ownhflag ? ownhflag : localhost), ownportval);
+	int client_fd = listen_client((ownhflag ? ownhflag : localhost), ownportval, lillyflag);
 	if (client_fd < 0)
 	{
 		close(server_fd);
