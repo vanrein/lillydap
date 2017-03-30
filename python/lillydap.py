@@ -216,3 +216,64 @@ def _str_ascii_ (self):
 
 LDAPString.__str__ = _str_unicode_
 LDAPOID.__str__ = _str_ascii_
+
+
+def filter_eval (filter, callback, invert=False, **cbargs):
+	"""The filter_eval() function evaluates an rfc4511.Filter expression
+	   such as those that occur in a SearchRequest.
+	   
+	   The return value is composed from the result of callbacks that
+	   evaluate elementary tests.  These results are composed as indicated
+	   by the and, or and not operators.  The callbacks are invoked with
+	   TODO and the cbargs.
+	   
+	   Normally, the return value is either True or False.  In cases
+	   however, where the elementary tests return None so often that no
+	   final conclusion can be reached, this function may result None
+	   as well.  When the callback never returns None, then neither will
+	   this function.
+	   
+	   This function is as lazy as possible.  A True result in an "or"
+	   composition suffices, as well as a False result in an "and"
+	   composition; no further filter components will then be considered.
+	   Note that None always calls for further evaluation.
+	   
+	   The parameter "invert" may be used to invert the Filter's logic
+	   result.
+	   
+	   TODO: Move this functionality to C code?
+	"""
+	while True:
+		(hd,blen,hlen) = _quickder.der_header (filter)
+		if hd != DER_TAG_CONTEXT(2):
+			# Break on all but "not"
+			break
+		invert = not invert
+	if hd in [ DER_TAG_CONTEXT(0), DER_TAG_CONTEXT(1) ]:
+		# Find out collection function details
+		if invert:
+			hd ^= DER_TAG_CONTEXT(0) ^ DER_TAG_CONTEXT(1)
+		if hd == DER_TAG_CONTEXT(0):
+			# Found "and"
+			neutral,gameover = True,False
+		else:
+			# Found "or"
+			neutral,gameover = False,True
+		# Now iterate over content
+		elems = filter [-blen:]
+		while elems != '':
+			(hd,blen,hlen) = _quickder.der_header (elems)
+			if hlen + blen < len (elems):
+				raise Exception ("Malformed filter expression")
+			elem = elems [hlen:hlen+blen]
+			elems = elems [-blem:]
+			elemval = filter_eval (elem, callback, invert, **cbargs)
+			if elemval == gameover:
+				return gameover
+		return neutral
+	else:
+		elemval = filter_eval (filter [-blen:], callback, invert, **cbargs)
+		if elemval is not None and invert:
+			elemval = not elemval
+		return elemval
+
