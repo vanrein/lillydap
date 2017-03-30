@@ -232,6 +232,42 @@ int pump(int srcfd, int destfd, int serial)
 	return 0;
 }
 
+void dump_raw_packets(int server_fd, int client_fd)
+{
+	int serial = 0;
+	while(1)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(server_fd, &readfds);
+		FD_SET(client_fd, &readfds);
+
+		if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0)
+		{
+			perror("select(2):");
+			break;
+		}
+
+		if (FD_ISSET(server_fd, &readfds))
+		{
+			if (pump(server_fd, client_fd, serial) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+
+		if (FD_ISSET(client_fd, &readfds))
+		{
+			if (pump(client_fd, server_fd, serial) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	char *hflag = NULL; /* -h, hostname of server */
@@ -290,38 +326,8 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	int serial = 0;
-	while(1)
-	{
-		fd_set readfds;
-		FD_ZERO(&readfds);
-		FD_SET(server_fd, &readfds);
-		FD_SET(client_fd, &readfds);
+	dump_raw_packets(server_fd, client_fd);
 
-		if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0)
-		{
-			perror("select(2):");
-			break;
-		}
-
-		if (FD_ISSET(server_fd, &readfds))
-		{
-			if (pump(server_fd, client_fd, serial) < 0)
-			{
-				break;
-			}
-			++serial;
-		}
-
-		if (FD_ISSET(client_fd, &readfds))
-		{
-			if (pump(client_fd, server_fd, serial) < 0)
-			{
-				break;
-			}
-			++serial;
-		}
-	}
 	close(client_fd);
 	close(server_fd);
 	return 0;
