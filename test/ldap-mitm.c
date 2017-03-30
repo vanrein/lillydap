@@ -366,9 +366,9 @@ void dump_lilly_packets(int server_fd, int client_fd)
 int main(int argc, char **argv)
 {
 	char *hflag = NULL; /* -h, hostname of server */
-	int pflag = 389; /* -p, port of server */
+	int portval = 389; /* -p, port of server */
 	char *ownhflag= NULL; /* -H, hostname for self */
-	int ownpflag = 3899; /* -P, port for self */
+	int ownportval = 3899; /* -P, port for self */
 	int lillyflag = 0;
 
 	static const char localhost[] = "localhost";
@@ -379,13 +379,13 @@ int main(int argc, char **argv)
 		switch (ch)
 		{
 		case 'p':
-			if (set_port(&pflag, optarg) < 0)
+			if (set_port(&portval, optarg) < 0)
 			{
 				usage();
 			}
 			break;
 		case 'P':
-			if (set_port(&ownpflag, optarg) < 0)
+			if (set_port(&ownportval, optarg) < 0)
 			{
 				usage();
 			}
@@ -412,13 +412,13 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	int server_fd = connect_server((hflag ? hflag : localhost), pflag);
+	int server_fd = connect_server((hflag ? hflag : localhost), portval);
 	if (server_fd < 0)
 	{
 		usage();
 	}
 
-	int client_fd = listen_client((ownhflag ? ownhflag : localhost), ownpflag);
+	int client_fd = listen_client((ownhflag ? ownhflag : localhost), ownportval);
 	if (client_fd < 0)
 	{
 		close(server_fd);
