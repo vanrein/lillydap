@@ -58,14 +58,17 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <lillydap/api.h>
+
 /* Print usage string and exit with an error. */
 void usage()
 {
-	fprintf(stderr, "\nUsage: ldap-mitm [-h dsthost] [-p dstport] [-H lsthost] [-P lstport]\n"
+	fprintf(stderr, "\nUsage: ldap-mitm [-h dsthost] [-p dstport] [-H lsthost] [-P lstport] [-l]\n"
 		"\tdsthost and dstport specify the target host and port, like options\n"
 		"\t-h and -p for ldapsearch(1).\n\n"
 		"\tlsthost and lstport specify the hostname and port to listen on.\n"
-		"\tThen use those values as -h and -p for ldapsearch(1) instead.\n\n");
+		"\tThen use those values as -h and -p for ldapsearch(1) instead.\n\n"
+		"\tThe -l flag selects for LillyDAP-processing instead of raw packets.\n\n");
 	exit(1);
 }
 
@@ -232,6 +235,33 @@ int pump(int srcfd, int destfd, int serial)
 	return 0;
 }
 
+int lilly(LillyDAP *ldap)
+{
+	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
+	int r;
+
+	while ((r = lillyget_event(ldap)) > 0)
+	{
+		fprintf(stdout, "  Got %d\n", r);
+	}
+	if ((r < 0) && (errno != EAGAIN))
+	{
+		perror("get_event");
+		return r;
+	}
+	while ((r = lillyput_event(ldap)) > 0)
+	{
+		fprintf(stdout,"  Send %d\n", r);
+	}
+	if ((r < 0) && (errno != EAGAIN))
+	{
+		perror("put_event");
+		return r;
+	}
+
+	return 0;
+}
+
 void dump_raw_packets(int server_fd, int client_fd)
 {
 	int serial = 0;
@@ -268,17 +298,83 @@ void dump_raw_packets(int server_fd, int client_fd)
 	}
 }
 
+void dump_lilly_packets(int server_fd, int client_fd)
+{
+	/* Configure memory allocation functions -- and be silly about it */
+	lillymem_newpool_fun = sillymem_newpool;
+	lillymem_endpool_fun = sillymem_endpool;
+	lillymem_alloc_fun = sillymem_alloc;
+
+	/* LillyDAP creates and destroys pools as needed, but we need one
+	 * for the LillyDAP structure and some other allocations.
+	 */
+	LillyPool *pool = lillymem_newpool();
+	if (pool == NULL)
+	{
+		perror("newpool");
+		return;
+	}
+
+	/* This is for messages going server -> client */
+	LillyDAP *ldap_server = lillymem_alloc0(pool, sizeof(LillyDAP));
+	ldap_server->get_fd = server_fd;
+	ldap_server->put_fd = client_fd;
+	ldap_server->lillyget_dercursor =
+	ldap_server->lillyput_dercursor = lillyput_dercursor;
+
+	LillyDAP *ldap_client = lillymem_alloc0(pool, sizeof(LillyDAP));
+	ldap_client->get_fd = client_fd;
+	ldap_client->put_fd = server_fd;
+	ldap_client->lillyget_dercursor =
+	ldap_client->lillyput_dercursor = lillyput_dercursor;
+
+
+	int serial = 0;
+	while(1)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(server_fd, &readfds);
+		FD_SET(client_fd, &readfds);
+
+		if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0)
+		{
+			perror("select(2):");
+			break;
+		}
+
+		if (FD_ISSET(server_fd, &readfds))
+		{
+			if (lilly(ldap_server) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+
+		if (FD_ISSET(client_fd, &readfds))
+		{
+			if (lilly(ldap_client) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	char *hflag = NULL; /* -h, hostname of server */
 	int pflag = 389; /* -p, port of server */
 	char *ownhflag= NULL; /* -H, hostname for self */
 	int ownpflag = 3899; /* -P, port for self */
+	int lillyflag = 0;
 
 	static const char localhost[] = "localhost";
 
 	int ch;
-	while ((ch = getopt(argc, argv, "h:p:H:P:")) != -1)
+	while ((ch = getopt(argc, argv, "h:p:H:P:l")) != -1)
 	{
 		switch (ch)
 		{
@@ -299,6 +395,9 @@ int main(int argc, char **argv)
 			break;
 		case 'H':
 			ownhflag = optarg;
+			break;
+		case 'l':
+			lillyflag = 1;
 			break;
 		case '?':
 		default:
@@ -326,7 +425,14 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	dump_raw_packets(server_fd, client_fd);
+	if (lillyflag)
+	{
+		dump_lilly_packets(server_fd, client_fd);
+	}
+	else
+	{
+		dump_raw_packets(server_fd, client_fd);
+	}
 
 	close(client_fd);
 	close(server_fd);
