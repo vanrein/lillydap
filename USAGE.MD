@@ -217,31 +217,78 @@ be returned.
 
 ### Operation Functions
 
-You also need to link the operations, as they are set to `NULL` or
-undefined by default.  The stack shown above already gives
-alternative arrows leaving each block, and you may set the defaults or leave
-them `NULL` to indicate that they are not implemented.  You may of course
-route operations to your own routines, which would then process them like
-callbacks.
+By default, the layers of the processing stack are not wired up. LillyDAP
+comes with default implementations that just pass the message on to the
+next layer in the stack. LillyDAP itself handles moving the message
+from the input (going down the stack) to the output (going up the stack)
+side of operations.
+
+The operations are wired in to the LillyDAP processing stack by
+setting function pointers in the `LillyDAP*` structure. It is legal
+to leave them set to `NULL` at some level if messages never reach
+that processing level (e.g. it is possible to do processing at the
+level of DER cursors only).
+
+The function pointers that need to be set are (all members of the `LillyDAP` structure:
+
+ - lillyget_dercursor
+ - lillyput_dercursor
+ - lillyget_ldapmessage
+ - lillyput_ldapmessage
+ - lillyget_operation
+ - lillyput_operation
+
+These correspond to the steps of the processing stack as shown in the diagram.
+
+There are default implementations available for use in all of these operations.
+The names of these default operation functions are the same as the names of
+the function pointers that need to be set.
+
+For a do-nothing processing stack that nonetheless goes through all the
+layers of the processing stack, assign all the function pointers with their
+corresponding default operation implementation:
 
 ```
-LillyDAP *lil;
-lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
-
-lil->lillyget_dercursor   =
+/* Assuming lil allocated as above */
+lil->lillyget_dercursor   = lillyget_dercursor;
 lil->lillyput_dercursor   = lillyput_dercursor;
-lil->lillyget_ldapmessage =
+lil->lillyget_ldapmessage = lillyget_ldapmessage;
 lil->lillyput_ldapmessage = lillyput_ldapmessage;
-lil->lillyget_operation   =
+lil->lillyget_operation   = lillyget_operation;
 lil->lillyput_operation   = lillyput_operation;
 ```
-(Future versions of LillyDAP will probably have a static structure with this
-setup, so it can be setup in data structures.)
+
+Note the "short circuit" arrows from the downwards (input) stack to the
+upwards (output) stack. It is possible to jump more quickly to the output
+stack by calling or setting a short-circuit function. The most simple
+do-nothing processing stack will therefore configure the stack differently:
+
+```
+lil->lillyget_dercursor =
+lil->lillyput_dercursor = lillyput_dercursor;  /* Short-circuit on get */
+/* The remaining pointers may be set to NULL */
+```
+
+An operation function is always passed a `LillyDAP*` structure, and an
+operation which works at a specific level must always call either
+the short-circuit function (via the structure) or pass the message(s)
+it has on to the next layer in the stack (again, by calling indirectly via
+the function pointer in the structure).
+
+See the file [lillypass.c](test/lillypass.c) for an extended example
+of configuring the LillyDAP operations stack.
+
+### LDAP Functions
 
 If you want to parse operations into individual operations and data
-structures, you will need to setup the according switch with the callback
-functions that handle them:
- ```
+structures, then this too needs to be wired in to the processing stack.
+
+To wire LDAP functions in to the stack, create a structure of type
+`LillyOpRegistry` and set the function pointers in that structure to
+point to the functions that should be called to process messages
+corresponding to those LDAP message types.
+
+```
 static const LillyOpRegistry opregistry = {
     .by_name = {
         .BindRequest = lillyput_BindRequest,
@@ -254,20 +301,30 @@ static const LillyOpRegistry opregistry = {
     }
 };
 ```
-which you will of course hang into the connection's `LillyDAP` structure with
+
+Once the function pointers in the `LillyOpRegistry` structure are filled in,
+wire the LDAP operations functions in to the processing stack with:
+
 ```
 lil->opregistry = &opregistry;
 ```
 
-The management of an LDAP connection is done through an `LillyDAP` structure,
-and this holds [TODO:REFERENCES TO] the static function calling scheme that
-forms the actual protocol stack used.  The named operations do actually
-exist, and can be setup if they are what you want; or you may call them from
-a bypass function instead.
+An implementation of an LDAP operation function must call `lillyput_operation()`
+to pass the message on to the output-side of the processing stack.
 
-Please see the
+There are default implementations (which just pass the message on to the
+output-side) of the most common LDAP operations. Note that there are more
+LDAP operations than there are default implementations; LDAP messages of
+a type for which no operation function has been defined (i.e. the operation
+function is NULL) will return an error instead of being passed on to the
+output-side.
+
+(This note applies to the default implementation of `lillyput_getldapmessage()`,
+while a more generic implementation might pass those LDAP message types that
+have no LDAP operation function defined, directly to the output-side instead.)
+
+For a complete and up-to-date example, please see
 [test programs](test/lillypass.c)
-for up-to-date examples.
 
 
 ## Use with Event Loops
