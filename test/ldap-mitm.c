@@ -302,6 +302,7 @@ int lilly(LillyDAP *ldap)
 {
 	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
 	int r;
+	int zero_reads = 0;
 
 	while ((r = lillyget_event(ldap)) > 0)
 	{
@@ -312,6 +313,10 @@ int lilly(LillyDAP *ldap)
 		perror("get_event");
 		return r;
 	}
+	if (0 == r)
+	{
+		zero_reads = 1;
+	}
 	while ((r = lillyput_event(ldap)) > 0)
 	{
 		fprintf(stdout,"  Send %d\n", r);
@@ -320,6 +325,11 @@ int lilly(LillyDAP *ldap)
 	{
 		perror("put_event");
 		return r;
+	}
+	if ((r <= 0) && zero_reads)
+	{
+		/* 0 bytes were read (by lillyget_event()) and there was nothing to write. */
+		return -1;
 	}
 
 	return 0;
