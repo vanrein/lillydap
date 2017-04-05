@@ -2,16 +2,18 @@
 # CMakeLists.txt for LillyDAP
 #
 
-cmake_minimum_required (VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required (VERSION 3.1 FATAL_ERROR)
 project ("LillyDAP" C)
 
 set (CMAKE_MACOSX_RPATH 0)
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 include (MacroEnsureOutOfSourceBuild)
 include (MacroAddUninstallTarget)
 include (MacroGitVersionInfo)
 include (MacroCreateConfigFiles)
+
+find_package(Gperf REQUIRED)
 
 option (DEBUG
 	"Produce verbose output"
