@@ -80,4 +80,5 @@ foreach (netpkg ${netpkgs})
 endforeach()
 
 # Not so much a test as a standalone test-helper
-add_executable(ldap-mitm ldap-mitm.c)
+add_executable_silly(ldap-mitm ldap-mitm.c)
+target_link_libraries(ldap-mitm lillydapStatic ${Quick-DER_STATIC_LIBRARIES})
