@@ -61,7 +61,7 @@
 /* Print usage string and exit with an error. */
 void usage()
 {
-	fprintf(stderr, "\nUsage: ldap-mitm [-Z] [-h dsthost] [-p dstport] [-H lsthost] [-P lstport]\n"
+	fprintf(stderr, "\nUsage: ldap-mitm [-h dsthost] [-p dstport] [-H lsthost] [-P lstport]\n"
 		"\tdsthost and dstport specify the target host and port, like options\n"
 		"\t-h and -p for ldapsearch(1).\n\n"
 		"\tlsthost and lstport specify the hostname and port to listen on.\n"
@@ -89,25 +89,7 @@ int set_port(int *port, const char *arg)
 	return 0;
 }
 
-#if 0
-/* Connect to the server, setting up TLS if necessary.
- * Doesn't bind or do any other authentication, though.
- */
-LDAP *connect_server(const char *hostname, int port, int zflag)
-{
-	/* ldap_open() is deprecated, but much more convenient for -h -p constructions */
-	LDAP *handle = ldap_open((char *)hostname, port);
-	if (!handle)
-	{
-		fprintf(stderr, "Could not connect to LDAP server '%s:%d'.\n", hostname, port);
-		return NULL;
-	}
-	/* TODO: handle zflag */
-	return handle;
-}
-#endif
-
-int connect_server(const char *hostname, int port, int zflag)
+int connect_server(const char *hostname, int port)
 {
 	struct hostent *server = gethostbyname(hostname);
 	if (!server)
@@ -252,7 +234,6 @@ int pump(int srcfd, int destfd, int serial)
 
 int main(int argc, char **argv)
 {
-	int zflag = 0; /* -Z, starttls */
 	char *hflag = NULL; /* -h, hostname of server */
 	int pflag = 389; /* -p, port of server */
 	char *ownhflag= NULL; /* -H, hostname for self */
@@ -261,15 +242,10 @@ int main(int argc, char **argv)
 	static const char localhost[] = "localhost";
 
 	int ch;
-	while ((ch = getopt(argc, argv, "Zh:p:H:P:")) != -1)
+	while ((ch = getopt(argc, argv, "h:p:H:P:")) != -1)
 	{
 		switch (ch)
 		{
-#if 0
-		case 'Z':
-			zflag = 1;
-			break;
-#endif
 		case 'p':
 			if (set_port(&pflag, optarg) < 0)
 			{
@@ -301,7 +277,7 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	int server_fd = connect_server((hflag ? hflag : localhost), pflag, zflag);
+	int server_fd = connect_server((hflag ? hflag : localhost), pflag);
 	if (server_fd < 0)
 	{
 		usage();
