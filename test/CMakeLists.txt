@@ -80,9 +80,4 @@ foreach (netpkg ${netpkgs})
 endforeach()
 
 # Not so much a test as a standalone test-helper
-find_package(OpenLDAP)
-if (OpenLDAP_FOUND)
-	add_executable(ldap-mitm ldap-mitm.c)
-	target_link_libraries(ldap-mitm ${OpenLDAP_LIBRARIES})
-	target_include_directories(ldap-mitm PUBLIC ${OpenLDAP_INCLUDE_DIRS})
-endif()
+add_executable(ldap-mitm ldap-mitm.c)
