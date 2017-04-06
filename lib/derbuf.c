@@ -58,7 +58,7 @@ loop_more_data:
 			}
 			if (len >= 0x80) {
 				uint8_t lenlen = len;
-				hlen += lenlen;
+				hlen += lenlen & 0x7f;
 				len = 0;
 				uint8_t *ptr = lil->get_head6 + 2;
 				while (lenlen-- > 0x80) {

@@ -91,7 +91,7 @@ rerun_extended:
 	if (extreq || extresp) {
 		dercursor extoid = data [ extreq ? 0 : 4 ];
 		const struct packer_info_ext *pcke;
-		pcke = lillymsg_packinfo_ext (extoid.derptr, extoid.derlen);
+		pcke = lillymsg_packinfo_ext ((char *)extoid.derptr, extoid.derlen);
 		if (pcke == NULL) {
 			errno = ENOSYS;
 			goto bail_out;
