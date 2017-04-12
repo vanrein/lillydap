@@ -306,7 +306,7 @@ int write_buf(int destfd, const char *buf, int r, int verbose)
  * to pump a packet from one side to the other. That calls write_buf()
  * to write to the other side, and calls it again to write the serial file.
  */
-int pump(int srcfd, int destfd, int serial)
+int pump_raw(int srcfd, int destfd, int serial)
 {
 	static char serialfile[64];
 	static char buf[20480];
@@ -361,7 +361,7 @@ void dump_raw_packets(int server_fd, int client_fd)
 
 		if (FD_ISSET(server_fd, &readfds))
 		{
-			if (pump(server_fd, client_fd, serial) < 0)
+			if (pump_raw(server_fd, client_fd, serial) < 0)
 			{
 				break;
 			}
@@ -370,7 +370,7 @@ void dump_raw_packets(int server_fd, int client_fd)
 
 		if (FD_ISSET(client_fd, &readfds))
 		{
-			if (pump(client_fd, server_fd, serial) < 0)
+			if (pump_raw(client_fd, server_fd, serial) < 0)
 			{
 				break;
 			}
@@ -393,7 +393,33 @@ void dump_raw_packets(int server_fd, int client_fd)
  * stack and then waits for data, calling lilly() repeatedly to move data
  * from one side to the other.
  */
-int lilly(LillyDAP *ldap)
+int lillydump_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg)
+{
+	static char serialfile[64];
+	static char buf[20480];
+	static int serial = 0;
+
+	snprintf(serialfile, sizeof(serialfile), "msg.%06d.%d.bin", serial++, lil->get_fd);
+	int serialfd = open(serialfile, O_CREAT | O_WRONLY, 0644);
+	if (serialfd < 0)
+	{
+		fprintf(stderr, "Could not open data file '%s'.\n", serialfile);
+		return -1;
+	}
+	else
+	{
+		if (write_buf(serialfd, (char *)dermsg.derptr, dermsg.derlen, 0) < 0)
+		{
+			close(serialfd);
+			return -1;
+		}
+		close(serialfd);
+	}
+
+	return lillyput_dercursor(lil, qpool, dermsg);
+}
+
+int pump_lilly(LillyDAP *ldap)
 {
 	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
 	int r;
@@ -451,13 +477,13 @@ void dump_lilly_packets(int server_fd, int client_fd)
 	LillyDAP *ldap_server = lillymem_alloc0(pool, sizeof(LillyDAP));
 	ldap_server->get_fd = server_fd;
 	ldap_server->put_fd = client_fd;
-	ldap_server->lillyget_dercursor =
+	ldap_server->lillyget_dercursor = lillydump_dercursor;
 	ldap_server->lillyput_dercursor = lillyput_dercursor;
 
 	LillyDAP *ldap_client = lillymem_alloc0(pool, sizeof(LillyDAP));
 	ldap_client->get_fd = client_fd;
 	ldap_client->put_fd = server_fd;
-	ldap_client->lillyget_dercursor =
+	ldap_client->lillyget_dercursor = lillydump_dercursor;
 	ldap_client->lillyput_dercursor = lillyput_dercursor;
 
 
@@ -477,7 +503,7 @@ void dump_lilly_packets(int server_fd, int client_fd)
 
 		if (FD_ISSET(server_fd, &readfds))
 		{
-			if (lilly(ldap_server) < 0)
+			if (pump_lilly(ldap_server) < 0)
 			{
 				break;
 			}
@@ -486,7 +512,7 @@ void dump_lilly_packets(int server_fd, int client_fd)
 
 		if (FD_ISSET(client_fd, &readfds))
 		{
-			if (lilly(ldap_client) < 0)
+			if (pump_lilly(ldap_client) < 0)
 			{
 				break;
 			}
