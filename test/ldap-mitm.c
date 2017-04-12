@@ -35,6 +35,10 @@
  * descriptor randomisation in the kernel, 5 is usually the client
  * and 3 is the server.
  *
+ * The MITM happens in one of two ways:
+ *  - with raw sockets and no processing of the messages
+ *  - with the LillyDAP processing stack
+ * Use the -l flag to select the LillyDAP processing stack.
  */
 
 /*
@@ -92,6 +96,10 @@ int set_port(int *port, const char *arg)
 	return 0;
 }
 
+/* Switches the non-blocking flag (O_NONBLOCK) on the given file-
+ * descriptor @p fd on (if @p blocking is non-zero) or off (if
+ * @p blocking is zero). Returns -1 on error, 0 on success.
+ */
 int set_nonblocking(int fd, int blocking)
 {
 	int flags = fcntl(fd, F_GETFL, 0);
@@ -127,17 +135,14 @@ int set_nonblocking(int fd, int blocking)
 	return 0;
 }
 
-int try_nonblocking(int fd, const char *hostname, int port)
-{
-	if (set_nonblocking(fd, 1) < 0)
-	{
-		fprintf(stderr, "Could not set connection options to '%s:%d'.\n", hostname, port);
-		return -1;
-	}
 
-	return 0;
-}
-
+/* Connects to the (LDAP) server with @p hostname on @p port (usually 389).
+ * If @p nonblocking is non-zero, sets up the file-descriptor used for
+ * communicating with the server to be non-blocking. This is required
+ * for LillyDAP, not required for raw packet processing.
+ *
+ * Returns a file descriptor for communicating with the server, or -1 on error.
+ */
 int connect_server(const char *hostname, int port, int nonblocking)
 {
 	struct hostent *server = gethostbyname(hostname);
@@ -170,8 +175,9 @@ int connect_server(const char *hostname, int port, int nonblocking)
 
 	if (nonblocking)
 	{
-		if (try_nonblocking(sid, hostname, port) < 0)
+		if (set_nonblocking(sid, 1) < 0)
 		{
+			fprintf(stderr, "Could not set connection options to '%s:%d'.\n", hostname, port);
 			return -1;
 		}
 	}
@@ -179,6 +185,15 @@ int connect_server(const char *hostname, int port, int nonblocking)
 	return sid;
 }
 
+/* Sets up a listening socket, and waits until a client connects
+ * to it. Listens on the given @p hostname and @p port combination.
+ * If @p nonblocking is non-zero, the resulting file-descriptor
+ * is set to non-blocking mode. This is required for LillyDAP
+ * processing, not required for raw packet processing.
+ *
+ * Returns a file descriptor for communicating with the connected
+ * client, or -1 on error.
+ */
 int listen_client(const char *hostname, int port, int nonblocking)
 {
 	struct hostent *server = gethostbyname(hostname);
@@ -230,8 +245,9 @@ int listen_client(const char *hostname, int port, int nonblocking)
 
 	if (nonblocking)
 	{
-		if (try_nonblocking(client_fd, hostname, port) < 0)
+		if (set_nonblocking(client_fd, 1) < 0)
 		{
+			fprintf(stderr, "Could not set connection options to '%s:%d'.\n", hostname, port);
 			return -1;
 		}
 	}
@@ -298,6 +314,42 @@ int pump(int srcfd, int destfd, int serial)
 	return 0;
 }
 
+void dump_raw_packets(int server_fd, int client_fd)
+{
+	int serial = 0;
+	while(1)
+	{
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(server_fd, &readfds);
+		FD_SET(client_fd, &readfds);
+
+		if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0)
+		{
+			perror("select(2):");
+			break;
+		}
+
+		if (FD_ISSET(server_fd, &readfds))
+		{
+			if (pump(server_fd, client_fd, serial) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+
+		if (FD_ISSET(client_fd, &readfds))
+		{
+			if (pump(client_fd, server_fd, serial) < 0)
+			{
+				break;
+			}
+			++serial;
+		}
+	}
+}
+
 int lilly(LillyDAP *ldap)
 {
 	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
@@ -333,42 +385,6 @@ int lilly(LillyDAP *ldap)
 	}
 
 	return 0;
-}
-
-void dump_raw_packets(int server_fd, int client_fd)
-{
-	int serial = 0;
-	while(1)
-	{
-		fd_set readfds;
-		FD_ZERO(&readfds);
-		FD_SET(server_fd, &readfds);
-		FD_SET(client_fd, &readfds);
-
-		if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0)
-		{
-			perror("select(2):");
-			break;
-		}
-
-		if (FD_ISSET(server_fd, &readfds))
-		{
-			if (pump(server_fd, client_fd, serial) < 0)
-			{
-				break;
-			}
-			++serial;
-		}
-
-		if (FD_ISSET(client_fd, &readfds))
-		{
-			if (pump(client_fd, server_fd, serial) < 0)
-			{
-				break;
-			}
-			++serial;
-		}
-	}
 }
 
 void dump_lilly_packets(int server_fd, int client_fd)
