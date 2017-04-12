@@ -255,6 +255,13 @@ int listen_client(const char *hostname, int port, int nonblocking)
 	return client_fd;
 }
 
+/* Write a buffer @p buf of length @p r to an open file descriptor @p destfd.
+ * If the flag @p verbose is non-zero, print progress information as the
+ * writes are done (in case of partial writes, this will lead to multiple
+ * output lines as the total of @p r bytes are written).
+ *
+ * Returns 0 on succes, -1 on error.
+ */
 int write_buf(int destfd, const char *buf, int r, int verbose)
 {
 	int w = 0;
@@ -277,6 +284,28 @@ int write_buf(int destfd, const char *buf, int r, int verbose)
 	return 0;
 }
 
+/***
+ *
+ * Raw-packet dumping.
+ *
+ * The raw packet dump just does read() from the client or server socket,
+ * and writes the data received to the other side as well as writing it
+ * to a "serial" file. For each packet read, a new file is created in the
+ * current directory, named "msg.<serial>.<fd>.bin". The <serial> numbers
+ * increase with each packet, while <fd> indicates which descriptor was
+ * read for the data; usually this is 3 for the server side, 5 for the
+ * client.
+ *
+ * No guarantee is made that the data packets are valid LDAP messages, or
+ * even valid DER: if the socket transport chops up messages and returns
+ * them in different read() operations, then the message will be spread
+ * out over multiple serial-files; similarly, multiple messages may be
+ * concatenated into a single serial-file if they are buffered somewhere.
+ *
+ * Main entry point is dump_raw_packets(), which calls pump() repeatedly
+ * to pump a packet from one side to the other. That calls write_buf()
+ * to write to the other side, and calls it again to write the serial file.
+ */
 int pump(int srcfd, int destfd, int serial)
 {
 	static char serialfile[64];
@@ -350,6 +379,20 @@ void dump_raw_packets(int server_fd, int client_fd)
 	}
 }
 
+
+/***
+ * Lilly-packet dumping.
+ *
+ * Uses the LillyDAP processing stack to do the same as raw-packet dumping,
+ * except that the LillyDAP stack takes care to split things up into
+ * individual LDAP messages, so that each dumped serial-file contains
+ * exactly one message (which could be dumped by hexio, or processed
+ * by lilly-dump).
+ *
+ * Main entry point is dump_lilly_packets(), which sets up the processing
+ * stack and then waits for data, calling lilly() repeatedly to move data
+ * from one side to the other.
+ */
 int lilly(LillyDAP *ldap)
 {
 	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
