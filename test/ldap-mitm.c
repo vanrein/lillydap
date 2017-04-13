@@ -12,9 +12,7 @@
  * that this query returns something:
  *     ldapsearch -h db.example.com -p 389 '(objectclass=device)'
  * It's important that you don't use TLS or similar encryption,
- * because this tool currently doesn't break into that; the
- * -Z flag is (in future) supposed to insert starttls into
- * the stream.
+ * because this tool currently doesn't break into that.
  *
  * To man-in-the-middle log a query to that LDAP server, run
  * ldap-mitm with the same -h and -p flags, while giving
@@ -39,6 +37,14 @@
  *  - with raw sockets and no processing of the messages
  *  - with the LillyDAP processing stack
  * Use the -l flag to select the LillyDAP processing stack.
+ *
+ * With raw sockets, there is no guarantee that the dumped chunks
+ * will be single, complete LDAP messages; a single chunk may be
+ * more than one message, or only part of one -- it depends
+ * on network and socket buffering.
+ *
+ * With LillyDAP processing, each individual LDAP message is
+ * logged to a separate file.
  */
 
 /*
