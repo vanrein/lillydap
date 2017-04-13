@@ -399,13 +399,29 @@ void dump_raw_packets(int server_fd, int client_fd)
  * stack and then waits for data, calling lilly() repeatedly to move data
  * from one side to the other.
  */
+
+/* Since the LillyDAP structure is passed up and down the processing stack,
+ * we can play some memory-allocation tricks with it: we can add private
+ * data to the end of the structure by embedding it in a larger (longer)
+ * struct, and then casting the LillyDAP pointers to our own structure
+ * type (which is OK as long as we know the pointer we allocate at the
+ * beginning is large enough).
+ *
+ * Here, just add a serial number to the structure. Since we're going
+ * to increase the serial number on each packet received, but we have
+ * two LillyDAP stacks (one client-to-server, one server-to-client),
+ * use a pointer to a shared variable.
+ */
+typedef struct { LillyDAP ldap; int *serial; } LillyDAPX;
+
 int lillydump_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg)
 {
 	static char serialfile[64];
 	static char buf[20480];
-	static int serial = 0;
 
-	snprintf(serialfile, sizeof(serialfile), "msg.%06d.%d.bin", serial++, lil->get_fd);
+	LillyDAPX *ldap = (LillyDAPX *)lil;
+
+	snprintf(serialfile, sizeof(serialfile), "msg.%06d.%d.bin", (*(ldap->serial))++, lil->get_fd);
 	int serialfd = open(serialfile, O_CREAT | O_WRONLY, 0644);
 	if (serialfd < 0)
 	{
@@ -425,13 +441,13 @@ int lillydump_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg)
 	return lillyput_dercursor(lil, qpool, dermsg);
 }
 
-int pump_lilly(LillyDAP *ldap)
+int pump_lilly(LillyDAPX *ldap)
 {
-	fprintf(stdout, "Lilly %d -> %d.\n", ldap->get_fd, ldap->put_fd);
+	fprintf(stdout, "Lilly %d -> %d (msg.%d).\n", ldap->ldap.get_fd, ldap->ldap.put_fd, *(ldap->serial));
 	int r;
 	int zero_reads = 0;
 
-	while ((r = lillyget_event(ldap)) > 0)
+	while ((r = lillyget_event(&ldap->ldap)) > 0)
 	{
 		fprintf(stdout, "  Got %d\n", r);
 	}
@@ -444,7 +460,7 @@ int pump_lilly(LillyDAP *ldap)
 	{
 		zero_reads = 1;
 	}
-	while ((r = lillyput_event(ldap)) > 0)
+	while ((r = lillyput_event(&ldap->ldap)) > 0)
 	{
 		fprintf(stdout,"  Send %d\n", r);
 	}
@@ -480,20 +496,22 @@ void dump_lilly_packets(int server_fd, int client_fd)
 	}
 
 	/* This is for messages going server -> client */
-	LillyDAP *ldap_server = lillymem_alloc0(pool, sizeof(LillyDAP));
-	ldap_server->get_fd = server_fd;
-	ldap_server->put_fd = client_fd;
-	ldap_server->lillyget_dercursor = lillydump_dercursor;
-	ldap_server->lillyput_dercursor = lillyput_dercursor;
+	LillyDAPX *ldap_server = lillymem_alloc0(pool, sizeof(LillyDAPX));
+	ldap_server->ldap.get_fd = server_fd;
+	ldap_server->ldap.put_fd = client_fd;
+	ldap_server->ldap.lillyget_dercursor = lillydump_dercursor;
+	ldap_server->ldap.lillyput_dercursor = lillyput_dercursor;
 
-	LillyDAP *ldap_client = lillymem_alloc0(pool, sizeof(LillyDAP));
-	ldap_client->get_fd = client_fd;
-	ldap_client->put_fd = server_fd;
-	ldap_client->lillyget_dercursor = lillydump_dercursor;
-	ldap_client->lillyput_dercursor = lillyput_dercursor;
+	LillyDAPX *ldap_client = lillymem_alloc0(pool, sizeof(LillyDAPX));
+	ldap_client->ldap.get_fd = client_fd;
+	ldap_client->ldap.put_fd = server_fd;
+	ldap_client->ldap.lillyget_dercursor = lillydump_dercursor;
+	ldap_client->ldap.lillyput_dercursor = lillyput_dercursor;
 
 
 	int serial = 0;
+	ldap_server->serial = &serial;
+	ldap_client->serial = &serial;
 	while(1)
 	{
 		fd_set readfds;
@@ -513,7 +531,6 @@ void dump_lilly_packets(int server_fd, int client_fd)
 			{
 				break;
 			}
-			++serial;
 		}
 
 		if (FD_ISSET(client_fd, &readfds))
@@ -522,7 +539,6 @@ void dump_lilly_packets(int server_fd, int client_fd)
 			{
 				break;
 			}
-			++serial;
 		}
 	}
 }
