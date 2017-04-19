@@ -115,11 +115,11 @@ int lillyget_dercursor (LDAP *lil, LillyPool qpool_opt, dercursor msg) {
 	}
 	//
 	// Now put the harvested values to use
-	if (lil->lillyget_ldapmessage == NULL) {
+	if (lil->def->lillyget_ldapmessage == NULL) {
 		errno = ENOSYS;
 		goto bail_out;
 	}
-	return lil->lillyget_ldapmessage (lil, qpool_opt, msgid, mid_op_ctl [1], mid_op_ctl [2]);
+	return lil->def->lillyget_ldapmessage (lil, qpool_opt, msgid, mid_op_ctl [1], mid_op_ctl [2]);
 bail_out:
 	if (qpool_opt != NULL) {
 		lillymem_endpool (qpool_opt);

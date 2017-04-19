@@ -45,7 +45,7 @@
 
 
 // The LillyDAP structure contains all that is needed to herd cattle
-static LillyDAP lil = {
+static LDAP lil = {
 	//
 	// Output facilities (the queue is ok when zeroed)
 	.put_fd = 1,

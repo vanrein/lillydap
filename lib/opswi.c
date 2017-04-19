@@ -30,7 +30,7 @@ int lillyget_operation (LDAP *lil,
 		errno = EINVAL;
 		return -1;
 	}
-	if (lil->opregistry->by_opcode [opcode] == NULL) {
+	if (lil->def->opregistry->by_opcode [opcode] == NULL) {
 		errno = ENOSYS;
 		return -1;
 	}
@@ -38,5 +38,5 @@ int lillyget_operation (LDAP *lil,
 	// Now start the magic... call the by_opcode overlay, which was
 	// setup in the by_name overlay with its own data type.  Note
 	// how the opcode parameter is no longer passed.
-	return (*lil->opregistry->by_opcode [opcode]) (lil, qpool, msgid, data, controls);
+	return (*lil->def->opregistry->by_opcode [opcode]) (lil, qpool, msgid, data, controls);
 }

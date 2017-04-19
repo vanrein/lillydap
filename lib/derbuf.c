@@ -98,11 +98,11 @@ loop_more_data:
 	}
 	//
 	// Stage 4.  Send the data gotten to lillyget_xxx() processing routines
-	if (lil->lillyget_dercursor == NULL) {
+	if (lil->def->lillyget_dercursor == NULL) {
 		errno = ENOSYS;
 		goto bail_out;
 	}
-	int rv = lil->lillyget_dercursor (lil, lil->get_qpool, lil->get_msg);
+	int rv = lil->def->lillyget_dercursor (lil, lil->get_qpool, lil->get_msg);
 	lil->get_qpool = NULL;
 	if (rv == -1) {
 		goto bail_out;

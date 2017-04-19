@@ -156,6 +156,7 @@ static const LillyOpRegistry opregistry = {
 	}
 };
 
+static LillyDAP lillydap;
 
 int main (int argc, char *argv []) {
 	//
@@ -177,18 +178,19 @@ int main (int argc, char *argv []) {
 	}
 	//
 	// Allocate the connection structuur
-	LillyDAP *lil;
-	lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
+	LDAP *lil;
+	lil = lillymem_alloc0 (lipo, sizeof (LDAP));
+	lil->def = &lillydap;
 	//
 	// We first setup all operations to pass over to output directly...
-	lil->lillyget_dercursor   =
-	lil->lillyput_dercursor   = lillyput_dercursor;
-	lil->lillyget_ldapmessage =
-	lil->lillyput_ldapmessage = lillyput_ldapmessage;
-	lil->lillyget_opcode      =
-	lil->lillyput_opcode      = lillyput_opcode;
-	lil->lillyget_operation   =
-	lil->lillyput_operation   = lillyput_operation;
+	lil->def->lillyget_dercursor   =
+	lil->def->lillyput_dercursor   = lillyput_dercursor;
+	lil->def->lillyget_ldapmessage =
+	lil->def->lillyput_ldapmessage = lillyput_ldapmessage;
+	lil->def->lillyget_opcode      =
+	lil->def->lillyput_opcode      = lillyput_opcode;
+	lil->def->lillyget_operation   =
+	lil->def->lillyput_operation   = lillyput_operation;
 	//
 	// ...and then we gradually turn it back depending on the level
 	char level = 'X';
@@ -206,14 +208,14 @@ int main (int argc, char *argv []) {
 		//TODO// Replace opregistry with control-unpackers-repackers
 		// and fallthrough...
 	case '3':
-		lil->lillyget_operation   = lillyget_operation;
-		lil->opregistry = &opregistry;
+		lil->def->lillyget_operation   = lillyget_operation;
+		lil->def->opregistry = &opregistry;
 		// and fallthrough...
 	case '2':
-		lil->lillyget_ldapmessage = lillyget_ldapmessage;
+		lil->def->lillyget_ldapmessage = lillyget_ldapmessage;
 		// and fallthrough...
 	case '1':
-		lil->lillyget_dercursor   = lillyget_dercursor;
+		lil->def->lillyget_dercursor   = lillyget_dercursor;
 		// and fallthrough...
 	case '0':
 		// Keep everything as-is, passing as directly as possible

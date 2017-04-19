@@ -47,11 +47,11 @@ int lillyget_opcode (LDAP *lil,
 				const dercursor controls) = NULL;
 	if ((opcode < 31) && (((1UL << opcode) & LILLYGETR_ALL_RESP) != 0)) {
 		// Try to override for response processing
-		operation_fun = lil->lillyget_response;
+		operation_fun = lil->def->lillyget_response;
 	}
 	if (operation_fun == NULL) {
 		// Either a request or a non-overridden response
-		operation_fun = lil->lillyget_operation;
+		operation_fun = lil->def->lillyget_operation;
 	}
 	if (operation_fun == NULL) {
 		errno = ENOSYS;
@@ -70,7 +70,7 @@ int lillyget_opcode (LDAP *lil,
 	// Lookup the parser (and check if it is defined, and welcomed)
 	// For ExtendedRequest/Response, we loop here with a new opcode
 	const struct packer_info *pck;
-	if ((lil->reject_ops [opcode >> 5] & (1UL << opcode)) != 0) {
+	if ((lil->def->reject_ops [opcode >> 5] & (1UL << opcode)) != 0) {
 		// Trigger ENOSYS with the no-packer-found check below
 		pck = &opcode_reject;
 	} else {
@@ -153,7 +153,7 @@ int lillyput_operation (LDAP *lil,
 #endif
 	//
 	// Check that the upstream function is available
-	if (lil->lillyput_dercursor == NULL) {
+	if (lil->def->lillyput_dercursor == NULL) {
 		errno = ENOSYS;
 		return -1;
 	}
@@ -245,6 +245,6 @@ int lillyput_operation (LDAP *lil,
 #endif
 	//
 	// Pass the resulting DER message on to lillyput_dercursor()
-	return lil->lillyput_dercursor (lil, qpool, dermsg);
+	return lil->def->lillyput_dercursor (lil, qpool, dermsg);
 }
 

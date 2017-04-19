@@ -52,11 +52,11 @@ int lillyget_ldapmessage (LDAP *lil,
                                 const dercursor controls) = NULL;
 	if ((opcode < 31) && (((1UL << opcode) & LILLYGETR_ALL_RESP) != 0)) {
 		// Try to override for response processing
-		opcode_fun = lil->lillyget_opresp;
+		opcode_fun = lil->def->lillyget_opresp;
 	}
 	if (opcode_fun == NULL) {
 		// Either a request or a non-overridden response
-		opcode_fun = lil->lillyget_opcode;
+		opcode_fun = lil->def->lillyget_opcode;
 	}
 	if (opcode_fun == NULL) {
 		errno = ENOSYS;

@@ -59,7 +59,7 @@ void lillyput_enqueue (struct LillyConnection *lil, struct LillySend *addend);
  * dermessages, so this is just there to mirror properly; it may actually be
  * useful as a value for a lillyget_dercursor() pointer.
  */
-int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg);
+int lillyput_dercursor (LDAP *lil, LillyPool qpool, dercursor dermsg);
 
 
 /* Test if there is anything in the queue for LillyPut

@@ -42,54 +42,29 @@
  * operations from this program to the network.  Note that the network may in
  * reality be short-circuited for more direct connections to other endpoints.
  *
- * Typedef aliases for struct LillyConnection are LDAP and LillyDAP.
+ * Typedef alias for struct LillyConnection is LDAP.
+ * Typedef alias for struct LillyStructural is LillyDAP.
  */
+
 typedef struct LillyConnection LDAP;
-typedef struct LillyConnection LillyDAP;
-struct LillyConnection {
+typedef struct LillyStructural LillyDAP;
+
+struct LillyStructural {
 	//
 	// Node data for this LillyDAP endpoint
 	// RFC 1823 is denoted as 1.0
-	uint16_t v_major, v_minor;
-	uint16_t flags;
-	uint16_t reserverd_flags;
+	const uint16_t v_major, v_minor;
 	uint32_t reject_ops [2];
-	struct LillyDef *def;
-	struct LillyConn *rev;
-	struct LillyConn *fwd;
 	//
-	// Connection description
-	int get_fd;
-	int put_fd;
-	LillyPool get_qpool;
-	size_t get_gotten;
-	uint8_t get_head6 [6];	//TODO// overlay get_msg
-	dercursor get_msg;
-	struct LillySend *put_qhead, **put_qtail;
-	//
-	// Memory management for the connection and messages
-	LillyPool cnxpool;
-	struct LillyMsgLayer *msghash;
-	//
-	// API Layer: Receiving an LDAPMessage
-	/// TODO //
-	//
-	// API Layer: Receive a union of parsed LDAPMessage structures
-	// TODO //
-	//
-	// API Layer: Receive a per-operation callback based on a regitstry
-	const union LillyOpRegistry *opregistry;
-	int (*lillyget_switch) ();  //TODO//TYPING
-	//
-	// API Layer: The callback variant of the standard API for C
-	// TODO //
-	//
+	// API Layer: Receiving a DER blob
 	int (*lillyget_dercursor) (LDAP *lil,
 				LillyPool qpool_opt,
 				dercursor msg);
 	int (*lillyput_dercursor) (LDAP *lil,
 				LillyPool qpool,
 				dercursor dermsg);
+	//
+	// API Layer: Receiving an LDAPMessage
 	int (*lillyget_ldapmessage) (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -100,6 +75,8 @@ struct LillyConnection {
 				const LillyMsgId msgid,
 				const dercursor operation,
 				const dercursor controls);
+	//
+	// API Layer: Receive an LDAPMessage with the opcode parsed out
 	int (*lillyget_opcode) (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -124,6 +101,8 @@ struct LillyConnection {
 				const uint8_t opcode_ignored,
 				const dercursor operation,
 				const dercursor controls);
+	//
+	// API Layer: Receive an operation with args as an array of dercursor
 	int (*lillyget_operation) (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -148,9 +127,19 @@ struct LillyConnection {
 				const uint8_t opcode,
 				const dercursor *data,
 				const dercursor controls);
-	// Functions to implement the standard API
-	// (RFC-compatible wrappers are defined below)
-	struct LillyFun *fun;
+	//
+	// API Layer: Receive a per-operation callback based on a registry
+	const union LillyOpRegistry *opregistry;
+};
+
+struct LillyConnection {
+	//
+	// Node data for this LDAP endpoint
+	struct LillyStructural *def;
+	uint16_t flags;
+	uint16_t reserverd_flags;
+	struct LillyConn *rev;
+	struct LillyConn *fwd;
 	//
 	// Standard fields according to RFC 1823
 	int ld_deref;
@@ -159,6 +148,19 @@ struct LillyConnection {
 	int ld_errno;
 	char *ld_matched;
 	char *ld_error;
+	//
+	// Connection description, includes data for single lillyget_event()
+	int get_fd;
+	int put_fd;
+	LillyPool get_qpool;
+	size_t get_gotten;
+	uint8_t get_head6 [6];	//TODO// overlay get_msg
+	dercursor get_msg;
+	struct LillySend *put_qhead, **put_qtail;
+	//
+	// Memory management for the connection and messages
+	LillyPool cnxpool;
+	struct LillyMsgLayer *msghash;
 };
 
 
@@ -206,9 +208,9 @@ int lillyput_ldapmessage (LDAP *lil,
 				const LillyMsgId msgid,
 				const dercursor operation,
 				const dercursor controls);
-int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg);
-void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend);
-bool lillyput_cansend (LillyDAP *lil);
+int lillyput_dercursor (LDAP *lil, LillyPool qpool, dercursor dermsg);
+void lillyput_enqueue (LDAP *lil, struct LillySend *addend);
+bool lillyput_cansend (LDAP *lil);
 int lillyput_event (LDAP *lil);
 
 

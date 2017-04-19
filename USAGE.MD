@@ -31,7 +31,13 @@ control that you might desire over the LDAP passing through:
   * The **ldapmessage** level has taken the top-level DER blob apart, and
     parsed much of the data inside it.  This can be seen from the parameters
     passed at this level.
-  * The **operation** level has further processed the LDAP message into an
+  * The **opcode** level (including **opresp** overrides for responses opcodes)
+    has done only slightly more, namely parsed out the opcode.  This can be
+    used for handling strategies that vary (only) with the opcode.  As an
+    example, it can be used to pass authentication requests separately from
+    data inquiries.
+  * The **operation** level (including **response** overrides for responses)
+    has further processed the LDAP message into an
     operation, and provides structures adapted to the operation at hand.
     These are switched to implementation routines.
   * Finally, the lowest level handles the furthest parsed messages.
@@ -160,6 +166,7 @@ destroys them.  You may intervene with this, and decide to pass on a fresh
 pool if you would like to retain data for longer than the called
 routines use it.
 
+
 ### Driving LillyDAP
 
 LillyDAP fundamentally works on file descriptors, using `read()` and `write()`
@@ -172,13 +179,25 @@ which writes to the output-file descriptor. Both functions use a `LillyDAP*`
 structure, which is comparable to the `LDAP*` structure used in most LDAP
 implementations.
 
-To set up LillyDAP's drivers, allocate a `LillyDAP*` structure, and configure
+Functions like this, as well as various other static settings, can be
+made in a structure named `LillyDAP`.  It can be stored in a static global
+variable, or any other form, as long as we keep in mind that it will be
+shared among LDAP connections:
+
+```
+/* structural information of the LillyDAP stack setup */
+static struct LillyDAP lillydap;
+```
+
+To set up LillyDAP's drivers, allocate an `LDAP` structure, assign its
+static data in the `def` variable, and configure
 the file descriptors that it will read and write from:
 
 ```
 /* lipo is a pool, such as allocated above in Memory Allocation Functions */
 LillyDAP *lil;
 lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
+lil->def = &lillydap;
 
 lil->get_fd = input_fd; /* e.g. a network socket, or 0 for stdin */
 lil->put_fd = output_fd; /* e.g. 1 for stdout */
@@ -192,9 +211,11 @@ stack is called to deal with the message.
 
 By default the processing stack is not configured, and will return errors
 only -- see below, Operation Functions, for configuration information.
+When the file descriptors are set non-blocking, then any `EAGAIN` return
+value will be returned.
 
 When the processing stack is configured, the message first flows down the
-stack to the *netbytes*, *dercursor*, *ldapmessage* and *operation* layers.
+stack to the *netbytes*, *dercursor*, *ldapmessage*, *opcode* and *operation* layers.
 Eventually one of those layers passes the message to the output side of
 the stack, from where the message flows back up until it hits the *netbytes*
 layer. Any output message(s) that the processing has created, will be
@@ -204,6 +225,7 @@ output-file descriptor and completes the processing.
 Typical code will loop on getting and putting LDAP events, something like this:
 
 ```
+/* assume non-blocking file descriptors or one-shot operation */
 while (1) {
   /* Skip all error handling here */
   lillyget_event(lil);  /* lil allocated above, configured below */
@@ -215,6 +237,7 @@ Note once more that the processing stack must be configured (see below) before
 any of the layers of the stack are connected; until then only errors will
 be returned.
 
+
 ### Operation Functions
 
 By default, the layers of the processing stack are not wired up. LillyDAP
@@ -224,12 +247,13 @@ from the input (going down the stack) to the output (going up the stack)
 side of operations.
 
 The operations are wired in to the LillyDAP processing stack by
-setting function pointers in the `LillyDAP*` structure. It is legal
+setting function pointers in the `LillyDAP` structure. It is legal
 to leave them set to `NULL` at some level if messages never reach
 that processing level (e.g. it is possible to do processing at the
-level of DER cursors only).
+level of DER cursors only). When LillyDAP library functions do hit
+upon a `NULL` setting, they will return the `ENOSYS` error.
 
-The function pointers that need to be set are (all members of the `LillyDAP` structure:
+The function pointers that can be set are (all members of the `LillyDAP` structure:
 
  - lillyget_dercursor
  - lillyput_dercursor
@@ -237,13 +261,20 @@ The function pointers that need to be set are (all members of the `LillyDAP` str
  - lillyput_ldapmessage
  - lillyget_opcode
  - lillyput_opcode
+ - lillyget_opresp
+ - lillyput_opresp
  - lillyget_operation
  - lillyput_operation
+ - lillyget_response
+ - lillyput_response
 
 These correspond to the steps of the processing stack as shown in the diagram.
 
-There are default implementations available for use in all of these operations.
-The names of these default operation functions are the same as the names of
+There are default implementations available for use in all of these operations,
+with the exception of the overriding functions `_opresp` and `_response`, as
+these can be replaced with the non-overridden functions `_opcode` and
+`_operation`, respectively.
+The names of default operation functions are the same as the names of
 the function pointers that need to be set.
 
 For a do-nothing processing stack that nonetheless goes through all the
@@ -251,16 +282,38 @@ layers of the processing stack, assign all the function pointers with their
 corresponding default operation implementation:
 
 ```
-/* Assuming lil allocated as above */
-lil->lillyget_dercursor   = lillyget_dercursor;
-lil->lillyput_dercursor   = lillyput_dercursor;
-lil->lillyget_ldapmessage = lillyget_ldapmessage;
-lil->lillyput_ldapmessage = lillyput_ldapmessage;
-lil->lillyget_opcode      = lillyget_opcode;
-lil->lillyput_opcode      = lillyput_opcode;
-lil->lillyget_operation   = lillyget_operation;
-lil->lillyput_operation   = lillyput_operation;
+/* Assuming lillydap allocated as above */
+lillydap->lillyget_dercursor   = lillyget_dercursor;
+lillydap->lillyput_dercursor   = lillyput_dercursor;
+lillydap->lillyget_ldapmessage = lillyget_ldapmessage;
+lillydap->lillyput_ldapmessage = lillyput_ldapmessage;
+lillydap->lillyget_opcode      = lillyget_opcode;
+lillydap->lillyput_opcode      = lillyput_opcode;
+lillydap->lillyget_operation   = lillyget_operation;
+lillydap->lillyput_operation   = lillyput_operation;
 ```
+
+When `lillydap` is statically allocated as above, this may instead be done
+at compile time:
+
+```
+static LillyDAP lillydap = {
+	...
+	.lillyget_dercursor   = lillyget_dercursor;
+	.lillyput_dercursor   = lillyput_dercursor;
+	.lillyget_ldapmessage = lillyget_ldapmessage;
+	.lillyput_ldapmessage = lillyput_ldapmessage;
+	.lillyget_opcode      = lillyget_opcode;
+	.lillyput_opcode      = lillyput_opcode;
+	.lillyget_operation   = lillyget_operation;
+	.lillyput_operation   = lillyput_operation;
+	...
+};
+```
+
+If it is desired to override response handling of `_opcode`, then add the
+corresponding `_opresp` function; if it is desired to override response
+handling of `_operation`, then add the corresponding `_response` function.
 
 Note the "short circuit" arrows from the downwards (input) stack to the
 upwards (output) stack. It is possible to jump more quickly to the output
@@ -268,19 +321,31 @@ stack by calling or setting a short-circuit function. The most simple
 do-nothing processing stack will therefore configure the stack differently:
 
 ```
-lil->lillyget_dercursor =
-lil->lillyput_dercursor = lillyput_dercursor;  /* Short-circuit on get */
+lillydap->lillyget_dercursor =
+lillydap->lillyput_dercursor = lillyput_dercursor;  /* Short-circuit on get */
 /* The remaining pointers may be set to NULL */
 ```
 
-An operation function is always passed a `LillyDAP*` structure, and an
-operation which works at a specific level must always call either
+In the static form setup at compile time, this would be:
+
+```
+static LillyDAP lillydap = {
+	...
+	.lillyget_dercursor = lillyput_dercursor;  /* Short-circuit on get */
+	.lillyput_dercursor = lillyput_dercursor;
+	...
+};
+```
+
+An operation function is always passed an `LDAP*` structure, and an
+operation which works at a specific level should always call either
 the short-circuit function (via the structure) or pass the message(s)
 it has on to the next layer in the stack (again, by calling indirectly via
 the function pointer in the structure).
 
 See the file [lillypass.c](test/lillypass.c) for an extended example
 of configuring the LillyDAP operations stack.
+
 
 ### LDAP Functions
 
@@ -310,22 +375,25 @@ Once the function pointers in the `LillyOpRegistry` structure are filled in,
 wire the LDAP operations functions in to the processing stack with:
 
 ```
-lil->opregistry = &opregistry;
+lillydap->opregistry = &opregistry;
 ```
 
-An implementation of an LDAP operation function must call `lillyput_operation()`
-to pass the message on to the output-side of the processing stack.
+When `lillydap` is statically allocated as above, this may instead be done
+at compile time:
 
-There are default implementations (which just pass the message on to the
-output-side) of the most common LDAP operations. Note that there are more
-LDAP operations than there are default implementations; LDAP messages of
-a type for which no operation function has been defined (i.e. the operation
-function is NULL) will return an error instead of being passed on to the
-output-side.
+```
+static LillyDAP lillydap = {
+	...
+	.opregistry = &opregistry,
+	...
+};
+```
 
-(This note applies to the default implementation of `lillyput_getldapmessage()`,
-while a more generic implementation might pass those LDAP message types that
-have no LDAP operation function defined, directly to the output-side instead.)
+An implementation of an LDAP operation function may call `lillyput_operation()`
+to pass the message on to the output-side of the processing stack, including
+for responses (which are merely an override with no default function
+implementation).  Of course, it is also possible to invoke API functions
+that are closer to the network representation.
 
 For a complete and up-to-date example, please see
 [test programs](test/lillypass.c)

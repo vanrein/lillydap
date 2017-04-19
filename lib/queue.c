@@ -1,4 +1,4 @@
-/* queue.c -- Handle output queue items for a LillyDAP connection structure
+/* queue.c -- Handle output queue items for an LDAP connection structure
  *
  * From: Rick van Rein <rick@openfortress.nl>
  */
@@ -121,7 +121,7 @@ void lillyput_init (lillyput_signal_callback *sigcb) {
 
 /* Append a addend:LillySend structure to the lil->head,lil->tail:LillySend**
  */
-void lillyput_enqueue (LillyDAP *lil, LillySend *addend) {
+void lillyput_enqueue (LDAP *lil, LillySend *addend) {
 	addend->put_qnext = NULL;
 	// Let's swap addend->put_qnext for qtail
 	LillySend **qtail = xcg_ptr (&lil->put_qtail, &addend->put_qnext);
@@ -142,7 +142,7 @@ void lillyput_enqueue (LillyDAP *lil, LillySend *addend) {
 
 /* Test if there is anything in the queue for LillyPut
  */
-bool lillyput_cansend (LillyDAP *lil) {
+bool lillyput_cansend (LDAP *lil) {
 	return (!nil_ptr (&lil->put_qhead));
 }
 
@@ -240,7 +240,7 @@ restart:
  * dermessages, so this is just there to mirror properly; it may actually be
  * useful as a value for a lillyget_dercursor() pointer.
  */
-int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg) {
+int lillyput_dercursor (LDAP *lil, LillyPool qpool, dercursor dermsg) {
 	LillySend *lise = lillymem_alloc (qpool,
 				sizeof(LillySend) + sizeof(dercursor));
 	if (lise == NULL) {

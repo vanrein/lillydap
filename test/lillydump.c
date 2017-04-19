@@ -426,6 +426,13 @@ static const LillyOpRegistry opregistry = {
 	}
 };
 
+static LillyDAP lillydap = {
+	.lillyget_dercursor   = lillyget_dercursor,
+	.lillyget_ldapmessage = lillyget_ldapmessage,
+	.lillyget_opcode      = lillyget_opcode,
+	.lillyget_operation   = lillyget_operation,
+	.opregistry = &opregistry,
+};
 
 int main (int argc, char *argv []) {
 	//
@@ -447,13 +454,9 @@ int main (int argc, char *argv []) {
 	}
 	//
 	// Allocate the connection structuur
-	LillyDAP *lil;
-	lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
-	lil->lillyget_dercursor   = lillyget_dercursor;
-	lil->lillyget_ldapmessage = lillyget_ldapmessage;
-	lil->lillyget_opcode      = lillyget_opcode;
-	lil->lillyget_operation   = lillyget_operation;
-	lil->opregistry = &opregistry;
+	LDAP *lil;
+	lil = lillymem_alloc0 (lipo, sizeof (LDAP));
+	lil->def = &lillydap;
 	//
 	// Allocate a connection pool
 	lil->cnxpool = lillymem_newpool ();
