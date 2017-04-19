@@ -48,6 +48,8 @@
 
 typedef struct LillyConnection LDAP;
 typedef struct LillyStructural LillyDAP;
+typedef struct lillyctl_filter   *LillyControlAllOpsFilter;
+typedef union lillyctl_filtertab *LillyControlOpcodeFilters;
 
 struct LillyStructural {
 	//
@@ -55,6 +57,13 @@ struct LillyStructural {
 	// RFC 1823 is denoted as 1.0
 	const uint16_t v_major, v_minor;
 	uint32_t reject_ops [2];
+	//
+	// Control filtering structures
+	LillyControlOpcodeFilters lillyctl_recvop;
+	LillyControlOpcodeFilters lillyctl_sendop;
+	LillyControlAllOpsFilter  lillyctl_recvall;
+	LillyControlAllOpsFilter  lillyctl_sendall;
+	uint32_t control_unpack [1];
 	//
 	// API Layer: Receiving a DER blob
 	int (*lillyget_dercursor) (LDAP *lil,
