@@ -185,6 +185,8 @@ int main (int argc, char *argv []) {
 	lil->lillyput_dercursor   = lillyput_dercursor;
 	lil->lillyget_ldapmessage =
 	lil->lillyput_ldapmessage = lillyput_ldapmessage;
+	lil->lillyget_opcode      =
+	lil->lillyput_opcode      = lillyput_opcode;
 	lil->lillyget_operation   =
 	lil->lillyput_operation   = lillyput_operation;
 	//

@@ -235,6 +235,8 @@ The function pointers that need to be set are (all members of the `LillyDAP` str
  - lillyput_dercursor
  - lillyget_ldapmessage
  - lillyput_ldapmessage
+ - lillyget_opcode
+ - lillyput_opcode
  - lillyget_operation
  - lillyput_operation
 
@@ -254,6 +256,8 @@ lil->lillyget_dercursor   = lillyget_dercursor;
 lil->lillyput_dercursor   = lillyput_dercursor;
 lil->lillyget_ldapmessage = lillyget_ldapmessage;
 lil->lillyput_ldapmessage = lillyput_ldapmessage;
+lil->lillyget_opcode      = lillyget_opcode;
+lil->lillyput_opcode      = lillyput_opcode;
 lil->lillyget_operation   = lillyget_operation;
 lil->lillyput_operation   = lillyput_operation;
 ```

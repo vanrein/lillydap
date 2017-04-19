@@ -100,6 +100,30 @@ struct LillyConnection {
 				const LillyMsgId msgid,
 				const dercursor operation,
 				const dercursor controls);
+	int (*lillyget_opcode) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor operation,
+				const dercursor controls);
+	int (*lillyput_opcode) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode_ignored,
+				const dercursor operation,
+				const dercursor controls);
+	int (*lillyget_opresp) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor operation,
+				const dercursor controls);
+	int (*lillyput_opresp) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode_ignored,
+				const dercursor operation,
+				const dercursor controls);
 	int (*lillyget_operation) (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -107,6 +131,18 @@ struct LillyConnection {
 				const dercursor *data,
 				const dercursor controls);
 	int (*lillyput_operation) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls);
+	int (*lillyget_response) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls);
+	int (*lillyput_response) (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
 				const uint8_t opcode,
@@ -139,6 +175,12 @@ int lillyget_ldapmessage (LDAP *lil,
 				const LillyMsgId msgid,
 				const dercursor op,
 				const dercursor controls);
+int lillyget_opcode (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor operation,
+				const dercursor controls);
 int lillyget_operation (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
@@ -168,6 +210,23 @@ int lillyput_dercursor (LillyDAP *lil, LillyPool qpool, dercursor dermsg);
 void lillyput_enqueue (LillyDAP *lil, struct LillySend *addend);
 bool lillyput_cansend (LillyDAP *lil);
 int lillyput_event (LDAP *lil);
+
+
+/* Send an operation based on the given msgid, operation and control.
+ * Ignore the opcode, since it ought to be contained in the operation.
+ * In other words, this is just here for mirrorring purposes!
+ */
+static inline int lillyput_opcode (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode_ignored,
+				const dercursor operation,
+				const dercursor controls) {
+#if 0
+	assert (_lillydap_operation2opcode (operation) == opcode_ignored);
+#endif
+	return lillyput_ldapmessage (lil, qpool, msgid, operation, controls);
+};
 
 
 /* A parallel to ldap_open, filling the basic structure and returning

@@ -13,37 +13,47 @@
 #include <lillydap/mem.h>
 
 
+#define lillymsg_packinfo_ext codeop_lillymsg_packinfo_ext
 #include "msgop.tab"
 
 
-/* Receieve an LDAPMessage, which has been parsed shallowly, and split it
- * based on its operation code.  The qpool is optional; when provided, it
- * will because the responsibility of lillyget_ldapmessage() -- which it
- * may pass down to further lillyget_xxx() or other functions.
+/* Receive a shallow-parsed LDAPMessage whose opcode has been retrieved or,
+ * in case of an ExtendedResponse without OID, whose opcode may still be
+ * ExtendedResponse (when application code did not override it).
+ * Make the lillyget_operation() call with the properly parsed data, as
+ * indicated by the opcode.
  */
-int lillyget_ldapmessage (LDAP *lil,
+int lillyget_opcode (LDAP *lil,
 				LillyPool qpool,
 				const LillyMsgId msgid,
+				const uint8_t opcode,
 				const dercursor op,
 				const dercursor controls) {
+#if 0
 	//
 	// Check the message identity for sanity
 	if ((msgid == 0) || (msgid >= 0x80000000)) {
 		errno = EBADMSG;
 		goto bail_out;
 	}
+#endif
 	//
-	// Collect information about the operation; we will update the
-	// value later if it happens to be an ExtendedRequest/Response
-	uint8_t opcode = *op.derptr - DER_TAG_APPLICATION(0);
-	opcode &= ~ 0x20;  // Remove constructed/not flag
-	if (opcode >= 31) {
-		errno = EBADMSG;
-		goto bail_out;
+	// Lookup the function further down, and bail out if none found
+	int (*operation_fun) (LDAP *lil,
+				LillyPool qpool,
+				const LillyMsgId msgid,
+				const uint8_t opcode,
+				const dercursor *data,
+				const dercursor controls) = NULL;
+	if ((opcode < 31) && (((1UL << opcode) & LILLYGETR_ALL_RESP) != 0)) {
+		// Try to override for response processing
+		operation_fun = lil->lillyget_response;
 	}
-	//
-	// Check if we can put the harvested values to use
-	if (lil->lillyget_operation == NULL) {
+	if (operation_fun == NULL) {
+		// Either a request or a non-overridden response
+		operation_fun = lil->lillyget_operation;
+	}
+	if (operation_fun == NULL) {
 		errno = ENOSYS;
 		goto bail_out;
 	}
@@ -60,7 +70,6 @@ int lillyget_ldapmessage (LDAP *lil,
 	// Lookup the parser (and check if it is defined, and welcomed)
 	// For ExtendedRequest/Response, we loop here with a new opcode
 	const struct packer_info *pck;
-rerun_extended:
 	if ((lil->reject_ops [opcode >> 5] & (1UL << opcode)) != 0) {
 		// Trigger ENOSYS with the no-packer-found check below
 		pck = &opcode_reject;
@@ -85,31 +94,9 @@ rerun_extended:
 		goto bail_out;
 	}
 	//
-	// In case of ExtendedRequest or ExtendedResponse, continue parsing
-	bool extreq  = (opcode == OPCODE_EXTENDED_REQ );
-	bool extresp = (opcode == OPCODE_EXTENDED_RESP);
-	if (extreq || extresp) {
-		dercursor extoid = data [ extreq ? 0 : 4 ];
-		const struct packer_info_ext *pcke;
-		pcke = lillymsg_packinfo_ext ((char *)extoid.derptr, extoid.derlen);
-		if (pcke == NULL) {
-			errno = ENOSYS;
-			goto bail_out;
-		}
-		opcode = extreq? pcke->opc_request: pcke->opc_response;
-		if (opcode_table [opcode].pck_message != pck->pck_message) {
-			// Looping ends because none of the OIDs leads to
-			// ExtendedRequest or ExtendedResponse opcodes.
-			// We will loose *data, but that is the way things
-			// work under the region-based allocation idea.
-			goto rerun_extended;
-		}
-		// We continue when the extension adds no data of its own
-	}
-	//
 	// Pass down the information -- and the responsibility
 	// The response value also comes from lillyget_operation()
-	return lil->lillyget_operation (lil, qpool, msgid, opcode, data, controls);
+	return operation_fun (lil, qpool, msgid, opcode, data, controls);
 	//
 	// Upon failure, cleanup and report the failure to the upstream
 bail_out:

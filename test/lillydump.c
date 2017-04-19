@@ -451,6 +451,7 @@ int main (int argc, char *argv []) {
 	lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
 	lil->lillyget_dercursor   = lillyget_dercursor;
 	lil->lillyget_ldapmessage = lillyget_ldapmessage;
+	lil->lillyget_opcode      = lillyget_opcode;
 	lil->lillyget_operation   = lillyget_operation;
 	lil->opregistry = &opregistry;
 	//

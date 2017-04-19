@@ -2,7 +2,8 @@ set (LILLYDAP_SRC
 	derbuf.c
 	dermsg.c
 	mem.c
-	msgop.c
+	msgcode.c
+	codeop.c
 	opswi.c
 	queue.c
 	rfc1823.c
