@@ -38,12 +38,14 @@ macro(get_version_from_git _appname _default)
 		message("-- Looking for git-versioning information.")
 		exec_program (
 			${GIT_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}
 			ARGS diff --quiet
 			RETURN_VALUE GIT_HAVE_CHANGES
 		)
 
 		exec_program (
 			${GIT_EXECUTABLE}
+			${CMAKE_CURRENT_SOURCE_DIR}
 			ARGS describe --tags --match 'version-*.*-*'
 			OUTPUT_VARIABLE GIT_VERSION_INFO
 		)
