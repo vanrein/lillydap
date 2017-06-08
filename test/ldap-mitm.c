@@ -412,9 +412,9 @@ void dump_raw_packets(int server_fd, int client_fd)
  * two LillyDAP stacks (one client-to-server, one server-to-client),
  * use a pointer to a shared variable.
  */
-typedef struct { LDAP ldap; int *serial; } LDAPX;
+typedef struct { struct LillyConnection ldap; int *serial; } LDAPX;
 
-int lillydump_dercursor (LDAP *lil, LillyPool qpool, dercursor dermsg)
+int lillydump_dercursor (struct LillyConnection *lil, LillyPool qpool, dercursor dermsg)
 {
 	static char serialfile[64];
 	static char buf[20480];
@@ -478,7 +478,7 @@ int pump_lilly(LDAPX *ldap)
 	return 0;
 }
 
-static LillyDAP lillydap_dump_put = {
+static struct LillyStructural lillydap_dump_put = {
 	.lillyget_dercursor = lillydump_dercursor,
 	.lillyput_dercursor = lillyput_dercursor,
 };
