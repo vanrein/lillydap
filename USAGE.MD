@@ -175,33 +175,38 @@ in the *input/output* part of the diagram.
 
 The entry points for driving LillyDAP are the functions `lillyget_event()`
 which reads data from the input-file descriptor, and `lilltput_event()`
-which writes to the output-file descriptor. Both functions use a `LillyDAP*`
-structure, which is comparable to the `LDAP*` structure used in most LDAP
-implementations.
+which writes to the output-file descriptor. Both functions use a
+`LillyConnection*` structure, which is comparable to the `LDAP*` structure
+used in most LDAP implementations.
 
 Functions like this, as well as various other static settings, can be
-made in a structure named `LillyDAP`.  It can be stored in a static global
-variable, or any other form, as long as we keep in mind that it will be
+made in a structure of type `LillyStructural`.  It can be stored in a static
+global variable, or any other form, as long as we keep in mind that it may be
 shared among LDAP connections:
 
 ```
 /* structural information of the LillyDAP stack setup */
-static struct LillyDAP lillydap;
+static struct LillyStructural lillydap;
 ```
 
-To set up LillyDAP's drivers, allocate an `LDAP` structure, assign its
-static data in the `def` variable, and configure
-the file descriptors that it will read and write from:
+To set up LillyDAP's drivers for a specific connection, allocate an
+`LillyConnection` structure, assign its static data in the `def` variable,
+and configure the file descriptors that it will read and write from:
 
 ```
 /* lipo is a pool, such as allocated above in Memory Allocation Functions */
-LillyDAP *lil;
-lil = lillymem_alloc0 (lipo, sizeof (LillyDAP));
-lil->def = &lillydap;
+LillyConnection *lil;
+lil = lillymem_alloc0 (lipo, sizeof (LillyConnection));
+lil->def = &lillydap;  /* above, struct LillyStructural */
 
 lil->get_fd = input_fd; /* e.g. a network socket, or 0 for stdin */
 lil->put_fd = output_fd; /* e.g. 1 for stdout */
 ```
+
+LillyDAP provides typedefs so that `LDAP` is a type alias for `LillyConnection`
+and `LillyDAP` is a type alias for `LillyStructural`; in particular the alias
+`LDAP` makes porting code that expects to work with another LDAP library
+a bit easier.
 
 LillyDAP uses the standard `read()` and `write()` system calls to read those
 file descriptors. Call `lillyget_event()` to read from the input-file descriptor.
@@ -247,13 +252,14 @@ from the input (going down the stack) to the output (going up the stack)
 side of operations.
 
 The operations are wired in to the LillyDAP processing stack by
-setting function pointers in the `LillyDAP` structure. It is legal
+setting function pointers in the `LillyStructural` structure. It is legal
 to leave them set to `NULL` at some level if messages never reach
 that processing level (e.g. it is possible to do processing at the
 level of DER cursors only). When LillyDAP library functions do hit
 upon a `NULL` setting, they will return the `ENOSYS` error.
 
-The function pointers that can be set are (all members of the `LillyDAP` structure:
+The function pointers that can be set are (all members of the
+`LillyStructural` structure:
 
  - lillyget_dercursor
  - lillyput_dercursor
@@ -297,7 +303,7 @@ When `lillydap` is statically allocated as above, this may instead be done
 at compile time:
 
 ```
-static LillyDAP lillydap = {
+static LillyStructural lillydap = {
 	...
 	.lillyget_dercursor   = lillyget_dercursor;
 	.lillyput_dercursor   = lillyput_dercursor;
@@ -329,7 +335,7 @@ lillydap->lillyput_dercursor = lillyput_dercursor;  /* Short-circuit on get */
 In the static form setup at compile time, this would be:
 
 ```
-static LillyDAP lillydap = {
+static LillyStructural lillydap = {
 	...
 	.lillyget_dercursor = lillyput_dercursor;  /* Short-circuit on get */
 	.lillyput_dercursor = lillyput_dercursor;
@@ -337,7 +343,7 @@ static LillyDAP lillydap = {
 };
 ```
 
-An operation function is always passed an `LDAP*` structure, and an
+An operation function is always passed an `LillyConnection*` structure, and an
 operation which works at a specific level should always call either
 the short-circuit function (via the structure) or pass the message(s)
 it has on to the next layer in the stack (again, by calling indirectly via
@@ -382,7 +388,7 @@ When `lillydap` is statically allocated as above, this may instead be done
 at compile time:
 
 ```
-static LillyDAP lillydap = {
+static LillyStructural lillydap = {
 	...
 	.opregistry = &opregistry,
 	...
@@ -420,7 +426,7 @@ with the event callbacks.
 ## Use with Threads
 
 The LillyDAP routines are thread-safe, as long as each
-`LillyDAP` structure's events are processed in one thread.  Meaning,
+`LillyConnection` structure's events are processed in one thread.  Meaning,
 only one thread should call `lillyget_event()` and one (possibly
 other) thread should call `lillyput_event()`.  More precisely,
 the functions are not re-entrant and they want to see a continuous
