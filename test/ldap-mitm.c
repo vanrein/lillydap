@@ -507,7 +507,7 @@ void dump_lilly_packets(int server_fd, int client_fd)
 	ldap_server->ldap.put_fd = client_fd;
 
 	LDAPX *ldap_client = lillymem_alloc0(pool, sizeof(LDAPX));
-	ldap_server->ldap.def = &lillydap_dump_put;
+	ldap_client->ldap.def = &lillydap_dump_put;
 	ldap_client->ldap.get_fd = client_fd;
 	ldap_client->ldap.put_fd = server_fd;
 
