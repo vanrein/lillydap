@@ -10,6 +10,9 @@
 
 #include <quick-der/api.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The lillyctl_index values represent the index codes used by LillyDAP
  * to address individual controls.  The values are derived from OIDs by
@@ -255,5 +258,9 @@ union lillyctl_filtertab {
 	} by_name;
 };
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LILLYCTL_H */

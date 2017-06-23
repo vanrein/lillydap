@@ -1,6 +1,6 @@
 /* <lillydap/queue.h> -- The queue for async yet atomical send of LDAP ops.
  *
- * The output queue holds a sequence of packets that are ready to be written.  
+ * The output queue holds a sequence of packets that are ready to be written.
  * Queues are a necessity to overcome the possibility that we generate LDAP
  * operations at a faster pace than the send buffers are willing to take it.
  *
@@ -19,6 +19,9 @@
 #define LILLYPUT_QUEUE_H
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The atomicity of this queue is founded on libOPA, for a number of reasons:
  *
@@ -66,5 +69,9 @@ int lillyput_dercursor (LDAP *lil, LillyPool qpool, dercursor dermsg);
  */
 bool lillyput_cansend (struct LillyConnection *lil);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LILLYPUT_QUEUE_H */

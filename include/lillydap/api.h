@@ -59,6 +59,9 @@
 #include <quick-der/rfc4531.h>
 #include <quick-der/rfc5805.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The LillyConnection structure, also known as LDAP, describes an endpoint for
  * LDAP communication; pretty much a protocol-specific socket.  It details how
@@ -637,5 +640,8 @@ putop (23, ExtendedRequest)
 putop (24, ExtendedResponse)
 putop (25, IntermediateResponse)
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LILLYDAP_H */

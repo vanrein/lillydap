@@ -7,7 +7,7 @@
  *
  *  - LDAP connections (represented by the (LDAP *) endpoints.
  *  - LDAP queries
- * 
+ *
  * There is a module "sillymem" that you might use to initialise lillymem
  * if you really have no implementation (perhaps while your code is in
  * development).  The name for this module refers to the non-optimised
@@ -28,6 +28,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The type of a pool is opaque, as far as LillyDAP is concerned.
  */
@@ -146,5 +149,9 @@ struct LillyMsgLayer {
 	struct LillyMsgInfo msgid_info [LILLYDAP_MSGID_LAYERSIZE];
 };
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LILLYMEM_H */
