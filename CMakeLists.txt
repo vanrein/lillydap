@@ -32,7 +32,7 @@ if (NOT ${BUILD_SINGLE_THREADED})
 	find_package (Threads REQUIRED)
 endif()
 
-find_package (Quick-DER REQUIRED)
+find_package (Quick-DER 1.2 REQUIRED)
 
 #
 # Version Information
