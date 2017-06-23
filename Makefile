@@ -19,11 +19,15 @@ all: compile
 build-dir:
 	@mkdir -p build
 
-configure: build-dir
+configure: _configure build-dir build/CMakeCache.txt
+
+_configure:
+	@rm -f build/CMakeCache.txt
+
+build/CMakeCache.txt:
 	( cd build && cmake .. -DCMAKE_INSTALL_PREFIX=$(PREFIX) )
 
-compile: build-dir
-	test -f build/CMakeCache.txt || ( cd build && cmake .. -DCMAKE_INSTALL_PREFIX=$(PREFIX) )
+compile: build-dir build/CMakeCache.txt
 	( cd build && $(MAKE) )
 
 install: build-dir
