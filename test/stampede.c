@@ -115,7 +115,6 @@ void *cattle (void *nullarg) {
 
 int main (int argc, char *argv []) {
 	int nthr = 10000;
-	int nent = 10;
 	int thr;
 	int i;
 	//
@@ -127,15 +126,12 @@ int main (int argc, char *argv []) {
 	// Parse a few commandline arguments
 	if (argc >= 2) {
 		nthr = atoi (argv [1]);
-		if (nthr <= 0) {
-			fprintf (stderr, "Usage: %s [num_threads [num_entries]]\n", argv [0]);
-			exit (1);
-		}
 	}
-	if (argc >= 3) {
-		fprintf (stderr, "Sorry, %s cannot yet handle num_entries\n", argv [0]);
+	if ((argc >= 3) || (nthr <= 0)) {
+		fprintf (stderr, "Usage: %s [num_threads]\n", argv [0]);
 		exit (1);
 	}
+
 	//
 	// Raise the electric_fence for the herd of cattle to be held back
 	pthread_barrier_init (&electric_fence, NULL, nthr+1);
