@@ -103,10 +103,10 @@ loop_more_data:
 		goto bail_out;
 	}
 	int rv = lil->def->lillyget_dercursor (lil, lil->get_qpool, lil->get_msg);
-	lil->get_qpool = NULL;
 	if (rv == -1) {
 		goto bail_out;
 	}
+	lil->get_qpool = NULL;
 	//
 	// Stage 5.  Cycle back for more
 	goto loop_more_data;
