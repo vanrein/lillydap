@@ -166,6 +166,8 @@ destroys them.  You may intervene with this, and decide to pass on a fresh
 pool if you would like to retain data for longer than the called
 routines use it.
 
+The `lillymem_endpool` function must handle NULL pointers (to a pool) safely.
+
 
 ### Driving LillyDAP
 
@@ -241,6 +243,15 @@ while (1) {
 Note once more that the processing stack must be configured (see below) before
 any of the layers of the stack are connected; until then only errors will
 be returned.
+
+A `LillyConnection` may keep pools ready for sending and receiving events.
+After processing, release the queue and connection pools:
+
+```
+lillymem_endpool(lil->get_qpool); /* Queue pool for lil */
+lillymem_endpool(lil->cnxpool);   /* Connection pool for lil */
+lillymem_endpool(lipo); /* Pool lil was allocated from */
+```
 
 
 ### Operation Functions
