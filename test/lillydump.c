@@ -475,6 +475,7 @@ int main (int argc, char *argv []) {
 	//
 	// Cleanup and exit
 	lillymem_endpool (lil->cnxpool);
+	lillymem_endpool (lil->get_qpool);
 	lillymem_endpool (lipo);
 	exit (0);
 }
