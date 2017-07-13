@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.1 FATAL_ERROR)
 project ("LillyDAP" C)
 
 set (CMAKE_MACOSX_RPATH 0)
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_SOURCE_DIR}/cmake/modules)
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 include (MacroEnsureOutOfSourceBuild)
 include (MacroAddUninstallTarget)
