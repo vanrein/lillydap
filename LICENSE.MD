@@ -1,3 +1,7 @@
+# LillyDAP licensing terms
+
+<img alt="LillyDAP logo" src="lillydap-logo.png" style="float: right;"/>
+
 Copyright (c) 2017 Rick van Rein.
 Copyright (c) 2017, Adriaan de Groot <groot@kde.org>
 

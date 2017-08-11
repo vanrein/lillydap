@@ -1,9 +1,24 @@
 # LillyDAP (Little LDAP)
 
+<img alt="LillyDAP logo" src="lillydap-logo.png" style="float: right;"/>
+
 > *LDAP is protocol for data communication, with rich semantics for data
 > modelling, security and database administration.  But implementations of
 > LDAP start off from a notion of data storage, but are not ideal for
 > handling dynamic data.  LillyDAP was designed to change that.*
+
+See also:
+
+ - [Building and installing LillyDAP](INSTALL.MD)
+ - [Extended usage examples](USAGE.MD)
+ - [LDAP Search Filters](SEARCHFILTERS.MD) (a howto)
+ - [LDAP Controls](CONTROLS.MD) (a howto)
+ - [Utility functions](UTILITIES.MD)
+ - [Python bindings](PYTHON.MD)
+ - [Changelog](CHANGELOG.MD) (high-level history)
+ - [License](LICENSE.MD) (BSD 2-Clause)
+
+## Introduction
 
 Most of today's developers focus solely on HTTP to carry their data
 definitions.  This even happens when LDAP would be a better carrier, which
