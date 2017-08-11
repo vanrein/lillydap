@@ -70,15 +70,18 @@
 
 #include <lillydap/api.h>
 
+static int verbose = 0;
+
 /* Print usage string and exit with an error. */
 void usage()
 {
-	fprintf(stderr, "\nUsage: ldap-mitm [-h dsthost] [-p dstport] [-H lsthost] [-P lstport] [-l]\n"
+	fprintf(stderr, "\nUsage: ldap-mitm [-v] [-h dsthost] [-p dstport] [-H lsthost] [-P lstport] [-l]\n"
 		"\tdsthost and dstport specify the target host and port, like options\n"
 		"\t-h and -p for ldapsearch(1).\n\n"
 		"\tlsthost and lstport specify the hostname and port to listen on.\n"
 		"\tThen use those values as -h and -p for ldapsearch(1) instead.\n\n"
-		"\tThe -l flag selects for LillyDAP-processing instead of raw packets.\n\n");
+		"\tThe -l flag selects for LillyDAP-processing instead of raw packets,\n"
+		"\tand -v makes ldap-mitm more verbose.\n\n");
 	exit(1);
 }
 
@@ -188,6 +191,11 @@ int connect_server(const char *hostname, int port, int nonblocking)
 		}
 	}
 
+	if (verbose)
+	{
+		printf("Connected to server '%s:%d'.\n", hostname, port);
+	}
+
 	return sid;
 }
 
@@ -239,6 +247,11 @@ int listen_client(const char *hostname, int port, int nonblocking)
 		return -1;
 	}
 
+	if (verbose)
+	{
+		printf("Waiting for client connection on '%s:%d'.\n", hostname, port);
+	}
+
 	int client_fd = accept(sid, NULL, NULL);
 	if (client_fd < 0)
 	{
@@ -256,6 +269,11 @@ int listen_client(const char *hostname, int port, int nonblocking)
 			fprintf(stderr, "Could not set connection options to '%s:%d'.\n", hostname, port);
 			return -1;
 		}
+	}
+
+	if (verbose)
+	{
+		printf("Client connected to '%s:%d'.\n", hostname, port);
 	}
 
 	return client_fd;
@@ -325,7 +343,11 @@ int pump_raw(int srcfd, int destfd, int serial)
 		fprintf(stderr, "Could not open data file '%s'.\n", serialfile);
 	}
 
-	fprintf(stdout, "Pump %d -> %d.\n", srcfd, destfd);
+	if (verbose)
+	{
+		fprintf(stdout, "Pump %d -> %d.\n", srcfd, destfd);
+	}
+
 	if ((r = read(srcfd, buf, sizeof(buf))) > 0)
 	{
 		/* Writing to the dump-files may fail, not verbose */
@@ -443,7 +465,11 @@ int lillydump_dercursor (struct LillyConnection *lil, LillyPool qpool, dercursor
 
 int pump_lilly(LDAPX *ldap)
 {
-	fprintf(stdout, "Lilly %d -> %d (msg.%d).\n", ldap->ldap.get_fd, ldap->ldap.put_fd, *(ldap->serial));
+	if (verbose)
+	{
+		fprintf(stdout, "Lilly %d -> %d (msg.%d).\n", ldap->ldap.get_fd, ldap->ldap.put_fd, *(ldap->serial));
+	}
+
 	int r;
 	int zero_reads = 0;
 
@@ -462,7 +488,10 @@ int pump_lilly(LDAPX *ldap)
 	}
 	while ((r = lillyput_event(&ldap->ldap)) > 0)
 	{
-		fprintf(stdout,"  Send %d\n", r);
+		if (verbose)
+		{
+			fprintf(stdout,"  Send %d\n", r);
+		}
 	}
 	if ((r < 0) && (errno != EAGAIN))
 	{
@@ -563,7 +592,7 @@ int main(int argc, char **argv)
 	static const char localhost[] = "localhost";
 
 	int ch;
-	while ((ch = getopt(argc, argv, "h:p:H:P:l")) != -1)
+	while ((ch = getopt(argc, argv, "h:p:H:P:lv")) != -1)
 	{
 		switch (ch)
 		{
@@ -587,6 +616,9 @@ int main(int argc, char **argv)
 			break;
 		case 'l':
 			lillyflag = 1;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		case '?':
 		default:
