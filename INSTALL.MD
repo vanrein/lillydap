@@ -12,8 +12,9 @@ Runtime requirements:
 
 Building requirements:
 
-  * C compiler (we test with `gcc`)
+  * C compiler (we test with `gcc` and `clang`)
   * [CMake](https://cmake.org)
+  * [GPerf](https://www.gnu.org/software/gperf/)
 
 Packaging requirements:
 
