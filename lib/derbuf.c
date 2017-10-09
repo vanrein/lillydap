@@ -56,7 +56,7 @@ loop_more_data:
 				errno = ERANGE;
 				goto bail_out;
 			}
-			if (len >= 0x80) {
+			if (len > 0x80) {
 				uint8_t lenlen = len;
 				hlen += lenlen & 0x7f;
 				len = 0;
@@ -65,6 +65,10 @@ loop_more_data:
 					len <<= 8;
 					len += *ptr++;
 				}
+			} else if (len == 0x80) {
+				// Indefinite-length encoding (from BER)
+				errno = EBADMSG;
+				goto bail_out;
 			}
 			if ((tag != 0x30) || (hlen + len < 6)) {
 				errno = EINVAL;
